@@ -5,27 +5,23 @@ import google.generativeai as genai
 import gspread
 import os
 from fpdf import FPDF
-
-import json # Make sure this is added to your imports at the top!
+import json
+import docx
 
 # --- SECURE CLOUD SETUP ---
-# 1. Gemini AI Key from the Cloud Vault
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash') 
 
-# 2. Google Sheets Robot from the Cloud Vault
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
+
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
-# --- INITIALIZE SHORT-TERM MEMORY (SESSION STATE) ---
 if 'custom_findings' not in st.session_state:
-    # Start with one empty custom finding row
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
 
 def add_custom_finding():
-    # This function adds a new blank row when the "+" button is clicked
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
 st.title("📋 Tata's Chicks - FSMS Audit")
@@ -126,27 +122,21 @@ for module_name, checkpoints in MASTER_CHECKLIST.items():
 
 st.divider()
 
-# --- UPGRADED: DYNAMIC CUSTOM FINDINGS ---
 st.subheader("➕ Add Custom Findings (On-the-Fly)")
 st.write("Spot something not on the list? Log it below.")
 
-# Display all custom finding rows currently in memory
 for i, finding in enumerate(st.session_state.custom_findings):
-    col1, col2, col3 = st.columns([3, 2, 1]) # Adjusts the width of the columns
+    col1, col2, col3 = st.columns([3, 2, 1])
     with col1:
-        # The text input for the note
         finding["note"] = st.text_input(f"Violation Note #{i+1}", value=finding["note"], key=f"note_{i}")
     with col2:
-        # The risk level dropdown
         options = ["None (No deduction)", "L1 Critical (-25 pts)", "L2 Major (-10 pts)", "L3 Minor (-2 pts)"]
         finding["level"] = st.selectbox("Risk Level", options, index=options.index(finding["level"]), key=f"lvl_{i}")
     with col3:
-        # The new Changelog checkbox!
-        st.write(" ") # Just adds a little spacing to align with the text boxes
+        st.write(" ")
         st.write(" ")
         finding["changelog"] = st.checkbox("Add to Changelog", value=finding["changelog"], key=f"log_{i}")
 
-# The button to spawn more rows
 st.button("➕ Add Another Custom Finding", on_click=add_custom_finding)
 
 st.divider()
@@ -156,13 +146,12 @@ if st.button("Calculate, Save, & Generate Summary"):
     
     deductions = 0
     failed_items = []
-    changelog_items = [] # We will store requested changelog items here
+    changelog_items = []
     
     count_L1 = 0
     count_L2 = 0
     count_L3 = 0
     
-    # 1. Process Standard Modules
     for module_name, df in edited_modules.items():
         failed_rows = df[df["Fail?"] == True]
         
@@ -180,10 +169,9 @@ if st.button("Calculate, Save, & Generate Summary"):
             note_text = f" - Notes: {row['Notes']}" if row['Notes'] != "" else ""
             failed_items.append(f"[{row['Class']}] {row['ID']} {row['Description']}{note_text}")
             
-    # 2. Process Dynamic Custom Findings
     for finding in st.session_state.custom_findings:
-        if finding["note"].strip() != "": # Only process if they actually typed something
-            lvl_code = finding["level"].split()[0] # Grabs just the "L1", "L2", or "L3"
+        if finding["note"].strip() != "":
+            lvl_code = finding["level"].split()[0]
             
             if lvl_code == "L1": 
                 deductions += 25
@@ -198,13 +186,11 @@ if st.button("Calculate, Save, & Generate Summary"):
             finding_text = f"[{lvl_code}] Custom Finding: {finding['note']}"
             failed_items.append(finding_text)
             
-            # If the user ticked the changelog box, save it for Gemini!
             if finding["changelog"]:
                 changelog_items.append(finding["note"])
         
     final_score = (1 - (deductions / BASE_SCORE)) * 100
     
-    # Calculate Official Rating
     if final_score >= 95: rating = "Excellent (95-100%)"
     elif final_score >= 85: rating = "Good (85-94%)"
     elif final_score >= 75: rating = "Okay (75-84%)"
@@ -213,7 +199,6 @@ if st.button("Calculate, Save, & Generate Summary"):
     st.write(f"**Total Deductions:** {deductions}")
     st.write(f"**Final Score:** {final_score:.1f}% - {rating}")
     
-    # 3. Save to Google Sheets
     with st.spinner("Saving data to the Filing Cabinet..."):
         try:
             database = gc.open("Audit_Database").sheet1
@@ -224,23 +209,47 @@ if st.button("Calculate, Save, & Generate Summary"):
         except Exception as e:
             st.error(f"Could not save to Google Sheets. Diagnostic Error: {e}")
 
-    # 4. Talk to Gemini (STRICT REPORT PROMPT)
     st.divider()
     st.subheader("🤖 Executive Summary")
     
-    # Format the changelog text for Gemini
     if len(changelog_items) > 0:
         changelog_prompt = "\n".join([f"- {item}" for item in changelog_items])
     else:
         changelog_prompt = "No dynamic updates required for this cycle."
+
+    # --- KNOWLEDGE INJECTION: READ THE WORD DOCS ---
+    company_standards = ""
+    folder_path = "standards"
     
-    with st.spinner("Gemini is analyzing the findings and generating the structured report..."):
+    try:
+        for filename in os.listdir(folder_path):
+            if filename.endswith(".docx"):
+                file_path = os.path.join(folder_path, filename)
+                doc = docx.Document(file_path)
+                full_text = []
+                for para in doc.paragraphs:
+                    full_text.append(para.text)
+                company_standards += f"\n--- FROM FILE: {filename} ---\n"
+                company_standards += "\n".join(full_text)
+                company_standards += "\n"
+    except Exception as e:
+        company_standards = f"WARNING: Could not read standards folder. Error: {e}"
+    
+    with st.spinner("Gemini is analyzing the findings against Tata's Chicks specific standards..."):
         prompt = f"""
-        You are an expert Lead Food Safety Compliance Officer (FSCO). 
+        You are an expert Lead Food Safety Compliance Officer (FSCO) for Tata's Chicks. 
         I just finished an audit on {audit_date}. 
         The final score is {final_score}% ({deductions} points in deductions). 
         The specific violations found were: 
         {failed_items}
+        
+        CRITICAL RULEBOOK (Tata's Chicks PRPs & SOPs):
+        You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
+        Do not invent generic solutions if a solution exists in these rules. 
+        If a specific form or log is mentioned in the rules for a specific task, you MUST name that exact form in your preventive action.
+        ---
+        {company_standards}
+        ---
         
         Write a detailed, highly clinical Audit Executive Summary Report.
         
@@ -253,7 +262,7 @@ if st.button("Calculate, Save, & Generate Summary"):
         **1. Executive Summary**
         Objective: Summarize the surveillance audit purpose.
         Current Compliance Status: State the score.
-        Administrative Breakdown: Hypothesize the root cause of the systemic failures.
+        Administrative Breakdown: Hypothesize the root cause of the systemic failures based on our standards.
         Key Verdict: Give a strict directive for immediate next steps.
 
         **2. FSMS Administration: Changelog**
@@ -272,7 +281,7 @@ if st.button("Calculate, Save, & Generate Summary"):
         - Issue: (State the violation)
         - Immediate Correction: (What to do today)
         - Root Cause: (Hypothesize why it happened)
-        - Preventive Action: (How to stop it happening again)
+        - Preventive Action: (How to stop it happening again - USE THE CRITICAL RULEBOOK FOR THIS. Name specific forms if applicable.)
 
         **5. Mandatory Compliance Toolkit**
         List any physical safety equipment that must be procured based on the specific violations.
@@ -282,11 +291,9 @@ if st.button("Calculate, Save, & Generate Summary"):
             response = model.generate_content(prompt)
             st.write(response.text.replace('**', ''))
             
-            # 5. The Upgraded Printing Press (Grid Tables & Formatting)
             pdf = FPDF()
             pdf.add_page()
             
-            # --- PAGE HEADER ---
             pdf.set_font("Times", 'B', 12)
             pdf.cell(0, 6, txt="FSCO Monthly Surveillance & Verification Report", ln=True)
             pdf.set_font("Times", '', 9)
@@ -295,7 +302,6 @@ if st.button("Calculate, Save, & Generate Summary"):
             pdf.cell(0, 5, txt=f"Audit Date: {audit_date}", ln=True)
             pdf.ln(5)
             
-            # --- THE AI PARSER WITH TABLE INJECTION ---
             safe_text = response.text.encode('latin-1', 'replace').decode('latin-1')
             
             for line in safe_text.split('\n'):
@@ -342,7 +348,6 @@ if st.button("Calculate, Save, & Generate Summary"):
                     pdf.set_font("Times", '', 9)
                     pdf.multi_cell(0, 5, line.replace('**', ''))
             
-            # Create and Download the PDF
             pdf_filename = f"Audit_Report_{audit_date}.pdf"
             pdf.output(pdf_filename)
             
