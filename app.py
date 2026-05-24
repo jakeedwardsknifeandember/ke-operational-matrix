@@ -6,13 +6,16 @@ import gspread
 import os
 from fpdf import FPDF
 
-# --- THE AI SETUP ---
-genai.configure(api_key="AIzaSyDsCivMRKWYlswJsxWx_S5rLbonSFgXWo8")
+import json # Make sure this is added to your imports at the top!
+
+# --- SECURE CLOUD SETUP ---
+# 1. Gemini AI Key from the Cloud Vault
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash') 
 
-# --- THE GOOGLE SHEETS SETUP ---
-gc = gspread.service_account(filename="secrets.json")
-
+# 2. Google Sheets Robot from the Cloud Vault
+credentials = json.loads(st.secrets["gcp_service_account"])
+gc = gspread.service_account_from_dict(credentials)
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
