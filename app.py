@@ -18,15 +18,17 @@ gc = gspread.service_account_from_dict(credentials)
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
+# --- APP MEMORY ---
 if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
+if 'live_actions' not in st.session_state:
+    st.session_state.live_actions = {} # This tracks our Live AI responses!
 
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
 st.title("📋 Dynamic FSMS Audit")
 
-# --- CUSTOMIZATION: NEW INPUT FIELDS ---
 st.subheader("Audit Details")
 col1, col2 = st.columns(2)
 with col1:
@@ -38,73 +40,73 @@ audit_date = st.date_input("What is the date of the audit?", datetime.date.today
 
 st.divider()
 
-# --- THE FULL CHECKLIST DATA (SYNCED WITH TATA'S CHICKS SOPs) ---
+# --- THE FULL CHECKLIST DATA ---
 MASTER_CHECKLIST = {
     "Module 1: Personnel Hygiene": [
-        {"Fail?": False, "ID": "1.1", "Description": "Staff observed washing hands for 20s before cooking.", "Class": "L1", "Notes": "", "Action": "All staff must immediately re-perform proper handwashing for 20 seconds using soap and water."},
-        {"Fail?": False, "ID": "1.2", "Description": "Handwashing observed after touching face, phone, or trash.", "Class": "L1", "Notes": "", "Action": "All staff must immediately re-perform proper handwashing after potential contamination event."},
-        {"Fail?": False, "ID": "1.3", "Description": "No bare-hand contact with Ready-to-Eat (RTE) pasta/bread.", "Class": "L1", "Notes": "", "Action": "Cease all bare-hand contact with RTE foods immediately. Utilize appropriate gloves or utensils."},
-        {"Fail?": False, "ID": "1.4", "Description": "Service gloves changed when soiled or task switching.", "Class": "L1", "Notes": "", "Action": "All staff must immediately change soiled gloves or change gloves when switching tasks."},
-        {"Fail?": False, "ID": "1.5", "Description": "Hand sinks fully stocked with soap & paper towels.", "Class": "L2", "Notes": "", "Action": "Restock immediately or submit urgent Purchase Request for soap."},
-        {"Fail?": False, "ID": "1.6", "Description": "All kitchen staff wearing effective hair/beard nets.", "Class": "L3", "Notes": "", "Action": "Staff must don clean caps/hairnets and medical masks immediately."},
-        {"Fail?": False, "ID": "1.7", "Description": "No jewelry worn except for a plain wedding band.", "Class": "L3", "Notes": "", "Action": "Instruct staff to remove unauthorized jewelry immediately."},
-        {"Fail?": False, "ID": "1.8", "Description": "Uniforms are clean; no staff working in personal clothes.", "Class": "L3", "Notes": "", "Action": "Instruct staff to change into clean uniform."},
-        {"Fail?": False, "ID": "1.9", "Description": "[LOG CHECK] LOG-GHP-01 current and signed by manager.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training; Manager must complete Pre-Shift Wellness Check."},
-        {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": "", "Action": "Provide onsite refresher on the 48-hour illness exclusion rule."}
+        {"Fail?": False, "ID": "1.1", "Description": "Staff observed washing hands for 20s before cooking.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "1.2", "Description": "Handwashing observed after touching face, phone, or trash.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "1.3", "Description": "No bare-hand contact with Ready-to-Eat (RTE) pasta/bread.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "1.4", "Description": "Service gloves changed when soiled or task switching.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "1.5", "Description": "Hand sinks fully stocked with soap & paper towels.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "1.6", "Description": "All kitchen staff wearing effective hair/beard nets.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "1.7", "Description": "No jewelry worn except for a plain wedding band.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "1.8", "Description": "Uniforms are clean; no staff working in personal clothes.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "1.9", "Description": "[LOG CHECK] LOG-GHP-01 current and signed by manager.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": ""}
     ],
     "Module 2: Thermal Control": [
-        {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp >= 165 F for 15s.", "Class": "L1", "Notes": "", "Action": "Continue cooking until internal temp reaches 165°F for 15s."},
-        {"Fail?": False, "ID": "2.2", "Description": "Probe thermometers sanitized before/after each use.", "Class": "L1", "Notes": "", "Action": "Sanitize probe thermometer immediately."},
-        {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch.", "Class": "L1", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training for CCP logs."},
-        {"Fail?": False, "ID": "2.4", "Description": "No room-temp thawing observed on prep tables.", "Class": "L1", "Notes": "", "Action": "Move items to chiller immediately per SOP-OPS-03."},
-        {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135 F to 70 F within 2 hours.", "Class": "L1", "Notes": "", "Action": "Provide FSCO Onsite Refresher; move pasta to proper 2-stage cooling."},
-        {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp <= 41 F.", "Class": "L1", "Notes": "", "Action": "Move TCS items to the coldest internal zone immediately."},
-        {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at <= 0 F.", "Class": "L2", "Notes": "", "Action": "Adjust thermostat dial to lower temperature."},
-        {"Fail?": False, "ID": "2.8", "Description": "Permanent hanging thermometers present in all units.", "Class": "L2", "Notes": "", "Action": "Use FSCO's IR Thermometer for shift verification; Submit Purchase Request."},
-        {"Fail?": False, "ID": "2.9", "Description": "[LOG CHECK] LOG-TEMP-01 (AM/PM checks) has no gaps.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training for temp logs."},
-        {"Fail?": False, "ID": "2.10", "Description": "LOG-CAL-01 (Weekly Ice point) is up to date.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training for calibration logs."},
-        {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within 2 F.", "Class": "L1", "Notes": "", "Action": "Submit Purchase Request for functional thermometers."},
-        {"Fail?": False, "ID": "2.12", "Description": "Thawing items stored on the bottom shelf of refrigeration.", "Class": "L2", "Notes": "", "Action": "Move thawing items strictly to the bottom shelf."}
+        {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp >= 165 F for 15s.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.2", "Description": "Probe thermometers sanitized before/after each use.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.4", "Description": "No room-temp thawing observed on prep tables.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135 F to 70 F within 2 hours.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp <= 41 F.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at <= 0 F.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "2.8", "Description": "Permanent hanging thermometers present in all units.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "2.9", "Description": "[LOG CHECK] LOG-TEMP-01 (AM/PM checks) has no gaps.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "2.10", "Description": "LOG-CAL-01 (Weekly Ice point) is up to date.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within 2 F.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "2.12", "Description": "Thawing items stored on the bottom shelf of refrigeration.", "Class": "L2", "Notes": ""}
     ],
     "Module 3: Preparation & Cross-Contamination": [
-        {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "3.3", "Description": "[LOG CHECK] LOG-BREAD-01 is initialed and current.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE.", "Class": "L1", "Notes": "", "Action": "Swap to correct color-coded tongs immediately."},
-        {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade.", "Class": "L3", "Notes": "", "Action": "Submit request to replace non-food grade bins."},
-        {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE.", "Class": "L2", "Notes": "", "Action": "Separate raw and RTE prep areas immediately."},
-        {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg.", "Class": "L1", "Notes": "", "Action": "Relocate raw chicken strictly below cooked items."},
-        {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": "", "Action": "Submit Purchase Request for sanitizer buckets."}
+        {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "3.3", "Description": "[LOG CHECK] LOG-BREAD-01 is initialed and current.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": ""}
     ],
     "Module 4: Supply Chain & Traceability": [
-        {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries <= 41 F.", "Class": "L1", "Notes": "", "Action": "Provide FSCO Onsite Refresher; Reject shipment per SOP-OPS-01."},
-        {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L2", "Notes": "", "Action": "Instruct staff to label the items immediately."},
-        {"Fail?": False, "ID": "4.4", "Description": "Open dry goods (flour/pasta) decanted or sealed.", "Class": "L2", "Notes": "", "Action": "Seal or decant open dry goods immediately."},
-        {"Fail?": False, "ID": "4.5", "Description": "[LOG CHECK] LOG-TRACE-01 links Commissary # to Batch ID.", "Class": "L2", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "4.6", "Description": "FIFO rotation followed (Older stock in front).", "Class": "L3", "Notes": "", "Action": "Provide FSCO Onsite Refresher Training."},
-        {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in storage or prep.", "Class": "L1", "Notes": "", "Action": "Discard expired ingredients immediately."},
-        {"Fail?": False, "ID": "4.8", "Description": "Packaging is free of leaks, dents, or signs of tampering.", "Class": "L2", "Notes": "", "Action": "Reject affected units per SOP-OPS-01."},
-        {"Fail?": False, "ID": "4.9", "Description": "Food stored 6 inches off the floor on approved racking.", "Class": "L3", "Notes": "", "Action": "Move food 6 inches off the floor."},
-        {"Fail?": False, "ID": "4.10", "Description": "Only approved chemicals used (Sanitizer/Degreaser).", "Class": "L2", "Notes": "", "Action": "Remove unapproved chemicals from food areas."}
+        {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries <= 41 F.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "4.4", "Description": "Open dry goods (flour/pasta) decanted or sealed.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "4.5", "Description": "[LOG CHECK] LOG-TRACE-01 links Commissary # to Batch ID.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "4.6", "Description": "FIFO rotation followed (Older stock in front).", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in storage or prep.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "4.8", "Description": "Packaging is free of leaks, dents, or signs of tampering.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "4.9", "Description": "Food stored 6 inches off the floor on approved racking.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "4.10", "Description": "Only approved chemicals used (Sanitizer/Degreaser).", "Class": "L2", "Notes": ""}
     ],
     "Module 5: Sanitation, Pests & Infrastructure": [
-        {"Fail?": False, "ID": "5.1", "Description": "3-Basin manual setup active (Sink 1, Sink 2, Tub 3).", "Class": "L1", "Notes": "", "Action": "Submit Purchase Request for missing components."},
-        {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm.", "Class": "L1", "Notes": "", "Action": "Submit Purchase Request for sanitizer chemical."},
-        {"Fail?": False, "ID": "5.3", "Description": "All utensils/pans air-dried; no towels used.", "Class": "L2", "Notes": "", "Action": "Remove towels; allow items to air-dry."},
-        {"Fail?": False, "ID": "5.4", "Description": "[LOG CHECK] LOG-CLN-01 identifies D/W tasks completed.", "Class": "L2", "Notes": "", "Action": "Complete LOG-CLN-01 immediately."},
-        {"Fail?": False, "ID": "5.5", "Description": "No evidence of rodent droppings or gnaw marks.", "Class": "L1", "Notes": "", "Action": "Contact PCO immediately."},
-        {"Fail?": False, "ID": "5.6", "Description": "No active fly or cockroach activity in food zones.", "Class": "L1", "Notes": "", "Action": "Pest Control requested immediately."},
-        {"Fail?": False, "ID": "5.7", "Description": "Hole in the back door remains permanently sealed.", "Class": "L2", "Notes": "", "Action": "Submit urgent Repair Request."},
-        {"Fail?": False, "ID": "5.8", "Description": "Grease trap waste layer < 25% of total depth.", "Class": "L2", "Notes": "", "Action": "Schedule grease trap cleaning."},
-        {"Fail?": False, "ID": "5.9", "Description": "Broken floor tiles repaired (Harborage prevention).", "Class": "L3", "Notes": "", "Action": "Submit repair request."},
-        {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file.", "Class": "L2", "Notes": "", "Action": "Locate or request current month PCO report."},
-        {"Fail?": False, "ID": "5.11", "Description": "Exhaust hood filters are free of dripping grease.", "Class": "L2", "Notes": "", "Action": "Submit Repair/Cleaning request for oil drips."},
-        {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": "", "Action": "Submit repair request for missing shields."},
-        {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": "", "Action": "Post handwashing signs immediately."},
-        {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": "", "Action": "Clean large debris from drain basket & request screen repair."},
-        {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": "", "Action": "Empty and cover trash bins immediately."},
-        {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces are clean to sight/touch.", "Class": "L2", "Notes": "", "Action": "Clean affected surfaces immediately."}
+        {"Fail?": False, "ID": "5.1", "Description": "3-Basin manual setup active (Sink 1, Sink 2, Tub 3).", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "5.3", "Description": "All utensils/pans air-dried; no towels used.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.4", "Description": "[LOG CHECK] LOG-CLN-01 identifies D/W tasks completed.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.5", "Description": "No evidence of rodent droppings or gnaw marks.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "5.6", "Description": "No active fly or cockroach activity in food zones.", "Class": "L1", "Notes": ""},
+        {"Fail?": False, "ID": "5.7", "Description": "Hole in the back door remains permanently sealed.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.8", "Description": "Grease trap waste layer < 25% of total depth.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.9", "Description": "Broken floor tiles repaired (Harborage prevention).", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.11", "Description": "Exhaust hood filters are free of dripping grease.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": ""},
+        {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""},
+        {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces are clean to sight/touch.", "Class": "L2", "Notes": ""}
     ]
 }
 
@@ -128,11 +130,71 @@ for module_name, checkpoints in MASTER_CHECKLIST.items():
         )
         edited_modules[module_name] = edited_df
 
+# --- THE LIVE AI ENGINE DETECTOR ---
+current_failed_ids = []
+new_failures_to_process = []
+
+# Scan for what is currently checked
+for module_name, df in edited_modules.items():
+    failed_rows = df[df["Fail?"] == True]
+    for index, row in failed_rows.iterrows():
+        current_failed_ids.append(row["ID"])
+        # If it's a NEW failure that the AI hasn't seen yet...
+        if row["ID"] not in st.session_state.live_actions:
+            new_failures_to_process.append(row)
+
+# Clean up memory: If you unchecked a box, delete the AI action for it
+keys_to_remove = [k for k in st.session_state.live_actions.keys() if k not in current_failed_ids]
+for k in keys_to_remove:
+    del st.session_state.live_actions[k]
+
+# Trigger the Live AI if there are new boxes checked
+if len(new_failures_to_process) > 0:
+    # 1. Load the SOPs
+    company_standards = ""
+    try:
+        for filename in os.listdir("standards"):
+            if filename.endswith(".docx"):
+                doc = docx.Document(os.path.join("standards", filename))
+                company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
+    except Exception:
+        company_standards = "WARNING: Could not read standards folder."
+
+    # 2. Ask Gemini for each new item
+    for item in new_failures_to_process:
+        with st.spinner(f"Consulting SOPs for Checkpoint {item['ID']}..."):
+            prompt = f"""
+            You are the FSCO for {establishment_name}. A checkpoint just failed during an active audit.
+            Violation: [{item['Class']}] {item['ID']} {item['Description']} - Notes: {item['Notes']}
+            
+            Based STRICTLY on the following company SOPs, provide a short, 1-2 sentence IMMEDIATE physical action to tell the kitchen staff right now. Do not give root causes.
+            
+            SOPs:
+            {company_standards}
+            """
+            try:
+                response = model.generate_content(prompt)
+                st.session_state.live_actions[item["ID"]] = response.text.replace('**', '').strip()
+            except Exception:
+                st.session_state.live_actions[item["ID"]] = "Network error. Please consult SOPs manually."
+                
+    # Refresh the page instantly to show the new answers
+    st.rerun()
+
 st.divider()
 
-st.subheader("➕ Add Custom Findings (On-the-Fly)")
-st.write("Spot something not on the list? Log it below.")
+# --- DISPLAY THE LIVE ACTIONS ---
+st.subheader("🚨 Live On-Site Action Guide")
+if len(st.session_state.live_actions) > 0:
+    for fail_id, action_text in st.session_state.live_actions.items():
+        st.error(f"**{fail_id}**: {action_text}")
+else:
+    st.success("No deviations flagged yet! Everything looks good.")
 
+st.divider()
+
+# --- CUSTOM FINDINGS ---
+st.subheader("➕ Add Custom Findings (On-the-Fly)")
 for i, finding in enumerate(st.session_state.custom_findings):
     col1, col2, col3 = st.columns([3, 2, 1])
     with col1:
@@ -146,56 +208,44 @@ for i, finding in enumerate(st.session_state.custom_findings):
         finding["changelog"] = st.checkbox("Add to Changelog", value=finding["changelog"], key=f"log_{i}")
 
 st.button("➕ Add Another Custom Finding", on_click=add_custom_finding)
-
 st.divider()
 
-# --- THE MASTER ENGINE ---
-if st.button("Calculate, Save, & Generate Summary"):
-    
-    deductions = 0
-    failed_items = []
-    changelog_items = []
-    
-    count_L1 = 0
-    count_L2 = 0
-    count_L3 = 0
-    
+# --- HELPER: GATHER ALL FAILED ITEMS ---
+def get_all_failures():
+    current_failures = []
     for module_name, df in edited_modules.items():
         failed_rows = df[df["Fail?"] == True]
-        
         for index, row in failed_rows.iterrows():
-            if row["Class"] == "L1": 
-                deductions += 25
-                count_L1 += 1
-            elif row["Class"] == "L2": 
-                deductions += 10
-                count_L2 += 1
-            elif row["Class"] == "L3": 
-                deductions += 2
-                count_L3 += 1
-            
-            note_text = f" - Notes: {row['Notes']}" if row['Notes'] != "" else ""
-            failed_items.append(f"[{row['Class']}] {row['ID']} {row['Description']}{note_text}")
-            
+            current_failures.append(f"[{row['Class']}] {row['ID']} {row['Description']} - Notes: {row['Notes']}")
     for finding in st.session_state.custom_findings:
         if finding["note"].strip() != "":
             lvl_code = finding["level"].split()[0]
+            current_failures.append(f"[{lvl_code}] Custom Finding: {finding['note']}")
+    return current_failures
+
+# --- THE MASTER ENGINE (Final Report Generator) ---
+if st.button("Calculate, Save, & Generate Final Report"):
+    
+    deductions = 0
+    count_L1, count_L2, count_L3 = 0, 0, 0
+    changelog_items = []
+    failed_items = get_all_failures()
+    
+    # Calculate Math
+    for item in failed_items:
+        if "[L1]" in item: 
+            deductions += 25
+            count_L1 += 1
+        elif "[L2]" in item: 
+            deductions += 10
+            count_L2 += 1
+        elif "[L3]" in item: 
+            deductions += 2
+            count_L3 += 1
             
-            if lvl_code == "L1": 
-                deductions += 25
-                count_L1 += 1
-            elif lvl_code == "L2": 
-                deductions += 10
-                count_L2 += 1
-            elif lvl_code == "L3": 
-                deductions += 2
-                count_L3 += 1
-            
-            finding_text = f"[{lvl_code}] Custom Finding: {finding['note']}"
-            failed_items.append(finding_text)
-            
-            if finding["changelog"]:
-                changelog_items.append(finding["note"])
+    for finding in st.session_state.custom_findings:
+        if finding["note"].strip() != "" and finding["changelog"]:
+            changelog_items.append(finding["note"])
         
     final_score = (1 - (deductions / BASE_SCORE)) * 100
     
@@ -225,25 +275,17 @@ if st.button("Calculate, Save, & Generate Summary"):
     else:
         changelog_prompt = "No dynamic updates required for this cycle."
 
-    # --- KNOWLEDGE INJECTION: READ THE WORD DOCS ---
+    # Read SOPs for Final Report
     company_standards = ""
-    folder_path = "standards"
-    
     try:
-        for filename in os.listdir(folder_path):
+        for filename in os.listdir("standards"):
             if filename.endswith(".docx"):
-                file_path = os.path.join(folder_path, filename)
-                doc = docx.Document(file_path)
-                full_text = []
-                for para in doc.paragraphs:
-                    full_text.append(para.text)
-                company_standards += f"\n--- FROM FILE: {filename} ---\n"
-                company_standards += "\n".join(full_text)
-                company_standards += "\n"
+                doc = docx.Document(os.path.join("standards", filename))
+                company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
     except Exception as e:
         company_standards = f"WARNING: Could not read standards folder. Error: {e}"
     
-    with st.spinner(f"Gemini is analyzing the findings against {establishment_name}'s specific standards..."):
+    with st.spinner(f"Gemini is generating the final official report..."):
         prompt = f"""
         You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name}. 
         I just finished an audit on {audit_date}. 
@@ -254,7 +296,6 @@ if st.button("Calculate, Save, & Generate Summary"):
         CRITICAL RULEBOOK ({establishment_name} PRPs & SOPs):
         You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
         Do not invent generic solutions if a solution exists in these rules. 
-        If a specific form or log is mentioned in the rules for a specific task, you MUST name that exact form in your preventive action.
         ---
         {company_standards}
         ---
@@ -285,11 +326,12 @@ if st.button("Calculate, Save, & Generate Summary"):
         Provide a clean list of the specific violations found.
 
         **4. Corrective and Preventive Action (CAPA) Summary**
-        For every L1 and L2 violation, provide a recommended action plan formatted cleanly:
-        - Issue: (State the violation)
-        - Immediate Correction: (What to do today)
-        - Root Cause: (Hypothesize why it happened)
-        - Preventive Action: (How to stop it happening again - USE THE CRITICAL RULEBOOK FOR THIS. Name specific forms if applicable.)
+        For every L1 and L2 violation, provide a recommended action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
+        Format EXACTLY like this:
+        1. Issue: (State the violation)
+        Immediate Correction: (What to do today)
+        Root Cause: (Hypothesize why it happened)
+        Preventive Action: (How to stop it happening again)
 
         **5. Mandatory Compliance Toolkit**
         List any physical safety equipment that must be procured based on the specific violations.
@@ -302,7 +344,6 @@ if st.button("Calculate, Save, & Generate Summary"):
             pdf = FPDF()
             pdf.add_page()
             
-            # --- CUSTOMIZED PAGE HEADER ---
             pdf.set_font("Times", 'B', 12)
             pdf.cell(0, 6, txt="FSCO Monthly Surveillance & Verification Report", ln=True)
             pdf.set_font("Times", '', 9)
@@ -316,12 +357,10 @@ if st.button("Calculate, Save, & Generate Summary"):
             for line in safe_text.split('\n'):
                 line = line.strip()
                 
-                # Skip empty lines to prevent awkward spacing
                 if not line:
                     pdf.ln(2)
                     continue
                 
-                # Check for Main Section Headers (e.g. **1. Executive Summary**)
                 if line.startswith('**') and line.endswith('**'):
                     header_text = line.replace('**', '')
                     pdf.set_font("Times", 'B', 11)
@@ -359,22 +398,15 @@ if st.button("Calculate, Save, & Generate Summary"):
                         pdf.cell(110, 6, f"Rating: {rating}", border=1, align='C', ln=True)
                         pdf.ln(5)
                 
-                # --- NEW INLINE BOLDING LOGIC FOR SUBHEADERS ---
-                # Check if the line has a colon AND the word before the colon is relatively short
                 elif ":" in line and len(line.split(":")[0]) < 40:
                     parts = line.split(":", 1)
-                    
-                    # Print the prefix in BOLD
                     pdf.set_font("Times", 'B', 9)
                     pdf.write(5, parts[0] + ": ")
-                    
-                    # Switch back to NORMAL text and print the rest
                     pdf.set_font("Times", '', 9)
                     pdf.write(5, parts[1].strip() + "\n")
-                    pdf.ln(1) # Adds a tiny bit of space after the paragraph
+                    pdf.ln(1) 
                     
                 else:
-                    # Normal Paragraph Text
                     pdf.set_font("Times", '', 9)
                     pdf.multi_cell(0, 5, line.replace('**', ''))
             
