@@ -133,7 +133,7 @@ st.divider()
 st.subheader("➕ Add Custom Findings (On-the-Fly)")
 st.write("Spot something not on the list? Log it below.")
 
-for i, finding in st.session_state.custom_findings:
+for i, finding in enumerate(st.session_state.custom_findings):
     col1, col2, col3 = st.columns([3, 2, 1])
     with col1:
         finding["note"] = st.text_input(f"Violation Note #{i+1}", value=finding["note"], key=f"note_{i}")
