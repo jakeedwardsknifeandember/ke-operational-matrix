@@ -24,8 +24,16 @@ if 'custom_findings' not in st.session_state:
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
-st.title("📋 Tata's Chicks - FSMS Audit")
+st.title("📋 Dynamic FSMS Audit")
+
+# --- CUSTOMIZATION: NEW INPUT FIELDS ---
 st.subheader("Audit Details")
+col1, col2 = st.columns(2)
+with col1:
+    establishment_name = st.text_input("Establishment Name:", value="Tata's Chicks")
+with col2:
+    fsco_name = st.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
+    
 audit_date = st.date_input("What is the date of the audit?", datetime.date.today())
 
 st.divider()
@@ -125,7 +133,7 @@ st.divider()
 st.subheader("➕ Add Custom Findings (On-the-Fly)")
 st.write("Spot something not on the list? Log it below.")
 
-for i, finding in enumerate(st.session_state.custom_findings):
+for i, finding in st.session_state.custom_findings:
     col1, col2, col3 = st.columns([3, 2, 1])
     with col1:
         finding["note"] = st.text_input(f"Violation Note #{i+1}", value=finding["note"], key=f"note_{i}")
@@ -204,7 +212,7 @@ if st.button("Calculate, Save, & Generate Summary"):
             database = gc.open("Audit_Database").sheet1
             violations_text = " | ".join(failed_items)
             if violations_text == "" : violations_text = "No violations found."
-            database.append_row([str(audit_date), f"{final_score:.1f}%", deductions, violations_text])
+            database.append_row([str(audit_date), establishment_name, f"{final_score:.1f}%", deductions, violations_text])
             st.success("💾 Audit data saved successfully to Google Sheets!")
         except Exception as e:
             st.error(f"Could not save to Google Sheets. Diagnostic Error: {e}")
@@ -235,15 +243,15 @@ if st.button("Calculate, Save, & Generate Summary"):
     except Exception as e:
         company_standards = f"WARNING: Could not read standards folder. Error: {e}"
     
-    with st.spinner("Gemini is analyzing the findings against Tata's Chicks specific standards..."):
+    with st.spinner(f"Gemini is analyzing the findings against {establishment_name}'s specific standards..."):
         prompt = f"""
-        You are an expert Lead Food Safety Compliance Officer (FSCO) for Tata's Chicks. 
+        You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name}. 
         I just finished an audit on {audit_date}. 
         The final score is {final_score}% ({deductions} points in deductions). 
         The specific violations found were: 
         {failed_items}
         
-        CRITICAL RULEBOOK (Tata's Chicks PRPs & SOPs):
+        CRITICAL RULEBOOK ({establishment_name} PRPs & SOPs):
         You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
         Do not invent generic solutions if a solution exists in these rules. 
         If a specific form or log is mentioned in the rules for a specific task, you MUST name that exact form in your preventive action.
@@ -294,11 +302,12 @@ if st.button("Calculate, Save, & Generate Summary"):
             pdf = FPDF()
             pdf.add_page()
             
+            # --- CUSTOMIZED PAGE HEADER ---
             pdf.set_font("Times", 'B', 12)
             pdf.cell(0, 6, txt="FSCO Monthly Surveillance & Verification Report", ln=True)
             pdf.set_font("Times", '', 9)
-            pdf.cell(0, 5, txt="Establishment: Tata's Chicks", ln=True)
-            pdf.cell(0, 5, txt="Lead Auditor/FSCO: App Automated", ln=True)
+            pdf.cell(0, 5, txt=f"Establishment: {establishment_name}", ln=True)
+            pdf.cell(0, 5, txt=f"Lead Auditor/FSCO: {fsco_name}", ln=True)
             pdf.cell(0, 5, txt=f"Audit Date: {audit_date}", ln=True)
             pdf.ln(5)
             
@@ -306,8 +315,14 @@ if st.button("Calculate, Save, & Generate Summary"):
             
             for line in safe_text.split('\n'):
                 line = line.strip()
+                
+                # Skip empty lines to prevent awkward spacing
+                if not line:
+                    pdf.ln(2)
+                    continue
+                
+                # Check for Main Section Headers (e.g. **1. Executive Summary**)
                 if line.startswith('**') and line.endswith('**'):
-                    
                     header_text = line.replace('**', '')
                     pdf.set_font("Times", 'B', 11)
                     pdf.ln(3)
@@ -343,8 +358,23 @@ if st.button("Calculate, Save, & Generate Summary"):
                         pdf.cell(30, 6, f"{final_score:.1f}%", border=1, align='C')
                         pdf.cell(110, 6, f"Rating: {rating}", border=1, align='C', ln=True)
                         pdf.ln(5)
-                        
+                
+                # --- NEW INLINE BOLDING LOGIC FOR SUBHEADERS ---
+                # Check if the line has a colon AND the word before the colon is relatively short
+                elif ":" in line and len(line.split(":")[0]) < 40:
+                    parts = line.split(":", 1)
+                    
+                    # Print the prefix in BOLD
+                    pdf.set_font("Times", 'B', 9)
+                    pdf.write(5, parts[0] + ": ")
+                    
+                    # Switch back to NORMAL text and print the rest
+                    pdf.set_font("Times", '', 9)
+                    pdf.write(5, parts[1].strip() + "\n")
+                    pdf.ln(1) # Adds a tiny bit of space after the paragraph
+                    
                 else:
+                    # Normal Paragraph Text
                     pdf.set_font("Times", '', 9)
                     pdf.multi_cell(0, 5, line.replace('**', ''))
             
