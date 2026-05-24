@@ -452,24 +452,25 @@ with tab2:
                 sheet = gc.open("Audit_Database").sheet1
                 data = sheet.get_all_values()
                 
-                if len(data) > 0:
-                    if "Date" in data[0] or "Score" in data[0]:
-                        df = pd.DataFrame(data[1:], columns=data[0])
-                    else:
-                        df = pd.DataFrame(data, columns=["Date", "Establishment", "Score", "Deductions", "Violations"])
+                # Make sure there is at least a header row AND one data row
+                if len(data) > 1: 
+                    # Put the data (skipping the header row) into pandas
+                    df = pd.DataFrame(data[1:])
                     
-                    # --- NEW: Safely clean up blank spaces and bad data ---
-                    # 1. Clean the Score column and force it into numbers (errors='coerce' turns blanks into NaN)
+                    # Force our standard internal names onto the first 5 columns
+                    df = df.iloc[:, :5]
+                    df.columns = ["Date", "Establishment", "Score", "Deductions", "Violations"]
+                    
+                    # Clean the data safely
                     df["Score"] = df["Score"].astype(str).str.replace("%", "").str.strip()
                     df["Score"] = pd.to_numeric(df["Score"], errors="coerce")
-                    
-                    # 2. Convert Dates, turning blanks into NaN
                     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
                     
-                    # 3. Drop any row that is missing a Score or Date, then sort
+                    # Drop bad/empty rows and sort chronologically
                     df = df.dropna(subset=["Score", "Date"])
                     df = df.sort_values(by="Date")
                     
+                    # Draw the chart
                     st.line_chart(data=df, x="Date", y="Score", use_container_width=True)
                     
                     st.write("**Raw Historical Data:**")
