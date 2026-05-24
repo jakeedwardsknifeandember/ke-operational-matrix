@@ -458,8 +458,16 @@ with tab2:
                     else:
                         df = pd.DataFrame(data, columns=["Date", "Establishment", "Score", "Deductions", "Violations"])
                     
-                    df["Score"] = df["Score"].astype(str).str.replace("%", "").astype(float)
-                    df["Date"] = pd.to_datetime(df["Date"])
+                    # --- NEW: Safely clean up blank spaces and bad data ---
+                    # 1. Clean the Score column and force it into numbers (errors='coerce' turns blanks into NaN)
+                    df["Score"] = df["Score"].astype(str).str.replace("%", "").str.strip()
+                    df["Score"] = pd.to_numeric(df["Score"], errors="coerce")
+                    
+                    # 2. Convert Dates, turning blanks into NaN
+                    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                    
+                    # 3. Drop any row that is missing a Score or Date, then sort
+                    df = df.dropna(subset=["Score", "Date"])
                     df = df.sort_values(by="Date")
                     
                     st.line_chart(data=df, x="Date", y="Score", use_container_width=True)
