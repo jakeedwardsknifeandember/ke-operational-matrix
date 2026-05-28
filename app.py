@@ -208,6 +208,7 @@ with tab1:
         count_L1, count_L2, count_L3 = 0, 0, 0
         changelog_items = []
         failed_items = get_all_failures()
+        failed_items_formatted = "\n".join([f"- {item}" for item in failed_items]) if failed_items else "No violations found."
         
         for item in failed_items:
             if "[L1]" in item: 
@@ -298,7 +299,7 @@ with tab1:
             I just finished an audit on {audit_date}. 
             The final score is {final_score}% ({deductions} points in deductions). 
             The specific violations found were: 
-            {failed_items}
+            {failed_items_formatted}
             
             CRITICAL RULEBOOK ({establishment_name} PRPs & SOPs):
             You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
