@@ -40,7 +40,7 @@ if not st.session_state.logged_in:
     if st.button("Login"):
         if password_input == st.secrets["APP_PASSWORD"]:
             st.session_state.logged_in = True
-            st.rerun() # Refreshes the page to show the app
+            st.rerun()
         else:
             st.error("Incorrect password. Please try again.")
 
@@ -49,7 +49,6 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     
-    # --- APP NAVIGATION (TABS) ---
     tab1, tab2 = st.tabs(["📋 Conduct Audit", "📈 Analytics Dashboard"])
 
     # --- TAB 1: THE AUDIT FORM ---
@@ -186,7 +185,7 @@ if st.session_state.logged_in:
                     current_failures.append(f"[{lvl_code}] Custom Finding: {finding['note']}")
             return current_failures
 
-        # --- THE ON-DEMAND AI ACTION GUIDE ---
+        # --- RATE-LIMIT SAFE: ON-DEMAND ACTION GUIDE ---
         st.subheader("🚨 On-Site Action Guide")
         if st.button("💡 Consult SOPs for Immediate Actions"):
             current_failures = get_all_failures()
@@ -203,7 +202,7 @@ if st.session_state.logged_in:
                 except Exception:
                     company_standards = "WARNING: Could not read standards folder."
                     
-                with st.spinner("Consulting Tata's Chicks SOPs for immediate fixes..."):
+                with st.spinner("Consulting company SOPs for immediate fixes..."):
                     guide_prompt = f"""
                     You are the FSCO for {establishment_name}. I am currently auditing the kitchen.
                     Here are the items that just failed: {current_failures}
