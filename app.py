@@ -33,12 +33,11 @@ if 'cached_score_data' not in st.session_state:
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
-st.title("📋 Dynamic FSMS System")
-
 # ==========================================
 # THE GATEKEEPER (LOGIN SCREEN)
 # ==========================================
 if not st.session_state.logged_in:
+    st.title("📋 Dynamic FSMS System")
     st.subheader("🔒 Access Restricted")
     st.write("Please enter the system password to access the audit tools and dashboard.")
     
@@ -56,20 +55,30 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     
-    tab1, tab2 = st.tabs(["📋 Conduct Audit", "📈 Analytics Dashboard"])
+    # --- PROFESSIONAL SIDEBAR BRANDING & CONTROLS ---
+    st.sidebar.markdown("### 🪵 Knife & Ember")
+    st.sidebar.markdown("*Food Consultancy Services*")
+    st.sidebar.markdown("---")
+    
+    st.sidebar.subheader("⚙️ System Control Panel")
+    establishment_name = st.sidebar.text_input("Establishment Name:", value="Tata's Chicks")
+    fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
+    st.sidebar.caption("🛡️ Certified Food Safety Compliance Officer")
+    audit_date = st.sidebar.date_input("Audit Operational Date:", datetime.date.today())
+    
+    st.sidebar.markdown("---")
+    
+    # Main Title on Page
+    st.title("📋 Operational Surveillance Suite")
+    st.markdown(f"**Active Client:** {establishment_name} | **Field Engineer:** {fsco_name}")
+    st.divider()
+    
+    tab1, tab2 = st.tabs(["📋 Conduct Operational Audit", "📈 Portfolio Analytics Dashboard"])
 
     # --- TAB 1: THE AUDIT FORM ---
     with tab1:
-        st.subheader("Audit Details")
-        col1, col2 = st.columns(2)
-        with col1:
-            establishment_name = st.text_input("Establishment Name:", value="Tata's Chicks")
-        with col2:
-            fsco_name = st.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
-            
-        audit_date = st.date_input("What is the date of the audit?", datetime.date.today())
-
-        st.divider()
+        st.subheader("Operational Checkpoints")
+        st.write("Toggle deviations observed across processing corridors below:")
 
         # --- THE FULL CHECKLIST DATA ---
         MASTER_CHECKLIST = {
@@ -229,7 +238,7 @@ if st.session_state.logged_in:
         st.divider()
 
         # --- THE MASTER ENGINE (Final Report Generator) ---
-        if st.button("Calculate, Save, & Generate Final Report"):
+        if st.button("🔥 Process Metrics & Generate Final Report", use_container_width=True):
             
             deductions = 0
             count_L1, count_L2, count_L3 = 0, 0, 0
@@ -386,11 +395,22 @@ if st.session_state.logged_in:
         if st.session_state.report_generated:
             st.divider()
             
+            # --- ENTERPRISE METRIC CARD LAYOUT ---
             scores = st.session_state.cached_score_data
-            st.write(f"**Total Deductions:** {scores['deductions']}")
-            st.write(f"**Final Score:** {scores['final_score']:.1f}% - {scores['rating']}")
+            m_col1, m_col2, m_col3 = st.columns(3)
+            m_col1.metric("Final Verification Score", f"{scores['final_score']:.1f}%")
+            m_col2.metric("Total Point Deductions", f"-{scores['deductions']} pts")
+            m_col3.metric("Operational Status", scores['rating'].split()[0])
             
-            st.subheader("🤖 Executive Summary")
+            # Color-coded visual alert banners matching standard FSMS logic
+            if scores['final_score'] >= 95:
+                st.success("🟢 Facility is operating within an optimal compliance parameter.")
+            elif scores['final_score'] >= 85:
+                st.info("🟡 Facility displays stable parameters with minor correction paths needed.")
+            else:
+                st.error("🔴 Escalated Alert: System parameters drop below baseline safety levels.")
+            
+            st.subheader("🤖 Generated Executive Summary")
             st.write(st.session_state.cached_report_text)
             
             try:
@@ -442,8 +462,8 @@ if st.session_state.logged_in:
                             pdf.cell(110, 6, f"-{scores['count_L2'] * 10} pts", border=1, align='C', ln=True)
                             
                             pdf.cell(50, 6, "L3: Minor Deviations", border=1)
-                            pdf.cell(30, 6, str(count_L3), border=1, align='C')
-                            pdf.cell(110, 6, f"-{count_L3 * 2} pts", border=1, align='C', ln=True)
+                            pdf.cell(30, 6, str(scores['count_L3']), border=1, align='C')
+                            pdf.cell(110, 6, f"-{scores['count_L3'] * 2} pts", border=1, align='C', ln=True)
                             
                             pdf.set_font("Times", 'B', 9)
                             pdf.cell(50, 6, "Final Compliance Score", border=1)
@@ -473,7 +493,8 @@ if st.session_state.logged_in:
                     label="📥 Download Official Executive Summary PDF",
                     data=PDFbyte,
                     file_name=pdf_filename,
-                    mime='application/octet-stream'
+                    mime='application/octet-stream',
+                    use_container_width=True
                 )
                 
                 os.remove(pdf_filename)
@@ -482,10 +503,10 @@ if st.session_state.logged_in:
 
     # --- TAB 2: ANALYTICS DASHBOARD ---
     with tab2:
-        st.subheader("📈 Audit Progress Dashboard")
-        st.write("Track the historical performance of your establishments based on saved Google Sheets data.")
+        st.subheader("📈 Historical Metric Tracker")
+        st.write("Review compliance trajectory histories synchronized with your core database records.")
         
-        if st.button("🔄 Refresh Dashboard Data"):
+        if st.button("🔄 Sync Database Records", use_container_width=True):
             with st.spinner("Fetching data from the Google Sheets vault..."):
                 try:
                     sheet = gc.open("Audit_Database").sheet1
@@ -505,8 +526,8 @@ if st.session_state.logged_in:
                         
                         st.line_chart(data=df, x="Date", y="Score", use_container_width=True)
                         
-                        st.write("**Raw Historical Data:**")
-                        st.dataframe(df, use_container_width=True)
+                        st.write("**Raw Historical Data Vault:**")
+                        st.dataframe(df, use_container_width=True, hide_index=True)
                         
                     else:
                         st.info("No audit data found in the database yet.")
@@ -515,4 +536,4 @@ if st.session_state.logged_in:
                     st.error(f"Could not load dashboard. Diagnostic Error: {e}")
 
     # --- SIDEBAR LOGOUT CONTROL ---
-    st.sidebar.button("Log Out", on_click=lambda: st.session_state.update(logged_in=False, report_generated=False, cached_report_text="") or st.rerun())
+    st.sidebar.button("🔓 End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, report_generated=False, cached_report_text="") or st.rerun(), use_container_width=True)
