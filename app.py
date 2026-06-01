@@ -73,7 +73,7 @@ if st.session_state.logged_in:
     
     # Main Title on Page
     st.title("📋 Operational Surveillance Suite")
-    st.markdown(f"**Active Client:** {establishment_name} | **Field Engineer:** {fsco_name}")
+    st.markdown(f"**Active Client:** {establishment_name} | **Food Safety Compliance Officer:** {fsco_name}")
     st.divider()
     
     tab1, tab2 = st.tabs(["📋 Conduct Operational Audit", "📈 Portfolio Analytics Dashboard"])
