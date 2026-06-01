@@ -105,14 +105,24 @@ if st.session_state.logged_in:
             
             # --- PHASE 3B: WORD DOCUMENT CUSTOMIZATION ---
             with st.spinner("Step 2: Slicing core master document structures..."):
-                master_path = "standards/master_core_fsms.docx"
+                # List of all possible folder and file case combinations
+                possible_paths = [
+                    "templates/master_core_fsms.docx",
+                    "Templates/master_core_fsms.docx",
+                    "standards/master_core_fsms.docx",
+                    "Standards/master_core_fsms.docx",
+                    "templates/Master_Core_Fsms.docx",
+                    "Templates/Master_Core_Fsms.docx"
+                ]
                 
-                if not os.path.exists(master_path):
-                    # Check if you used 'standards' or 'templates' folder name
-                    master_path = "templates/master_core_fsms.docx"
+                master_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        master_path = path
+                        break
                 
-                if not os.path.exists(master_path):
-                    st.error("Document Halted: Master core file not found in standards or templates folder.")
+                if not master_path:
+                    st.error("Document Halted: Master file not found. Please verify the folder name matches exactly on GitHub.")
                 else:
                     try:
                         doc = Document(master_path)
