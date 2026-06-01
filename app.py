@@ -18,7 +18,7 @@ gc = gspread.service_account_from_dict(credentials)
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
-# --- APP MEMORY (THE MEMORY SHIELD AGENT) ---
+# --- APP MEMORY (THE MEMORY SHIELD) ---
 if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
 if 'logged_in' not in st.session_state:
@@ -192,7 +192,7 @@ if st.session_state.logged_in:
                     current_failures.append(f"[{lvl_code}] Custom Finding: {finding['note']}")
             return current_failures
 
-        # --- RATE-LIMIT SAFE: ON-DEMAND ACTION GUIDE ---
+        # --- ON-DEMAND ACTION GUIDE ---
         st.subheader("🚨 On-Site Action Guide")
         if st.button("💡 Consult SOPs for Immediate Actions"):
             current_failures = get_all_failures()
@@ -372,7 +372,7 @@ if st.session_state.logged_in:
 
                 **6. Historical Progress Summary**
                 Data: [{progress_context}]
-                Provide a concise, professional 1-2 sentence commentary on the facility's compliance trajectory based on the provided data.
+                Provide a portfolio-level 1-2 sentence commentary on the facility's compliance trajectory based on the provided data.
                 """
                 
                 try:
@@ -383,11 +383,9 @@ if st.session_state.logged_in:
                     st.error(f"Diagnostic Error: {e}")
 
         # --- THE MEMORY SHIELD PROTECTION CONTAINER ---
-        # This renders outside the button so that clicking "Download PDF" reads from state instead of recalculating
         if st.session_state.report_generated:
             st.divider()
             
-            # Print cached numbers on screen
             scores = st.session_state.cached_score_data
             st.write(f"**Total Deductions:** {scores['deductions']}")
             st.write(f"**Final Score:** {scores['final_score']:.1f}% - {scores['rating']}")
@@ -395,7 +393,6 @@ if st.session_state.logged_in:
             st.subheader("🤖 Executive Summary")
             st.write(st.session_state.cached_report_text)
             
-            # Secure FPDF Engine execution
             try:
                 pdf = FPDF()
                 pdf.add_page()
@@ -445,8 +442,8 @@ if st.session_state.logged_in:
                             pdf.cell(110, 6, f"-{scores['count_L2'] * 10} pts", border=1, align='C', ln=True)
                             
                             pdf.cell(50, 6, "L3: Minor Deviations", border=1)
-                            pdf.cell(30, 6, str(scores['count_L3']), border=1, align='C')
-                            pdf.cell(110, 6, f"-{scores['count_L3'] * 2} pts", border=1, align='C', ln=True)
+                            pdf.cell(30, 6, str(count_L3), border=1, align='C')
+                            pdf.cell(110, 6, f"-{count_L3 * 2} pts", border=1, align='C', ln=True)
                             
                             pdf.set_font("Times", 'B', 9)
                             pdf.cell(50, 6, "Final Compliance Score", border=1)
