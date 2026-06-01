@@ -15,7 +15,7 @@ import numpy as np
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash') 
 
-credentials = json.loads(st.secrets["gcp_service_account"])
+credentials = dict(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
 # --- THE SETTINGS ---
