@@ -15,9 +15,11 @@ import numpy as np
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash') 
 
-credentials = dict(st.secrets["gcp_service_account"])
-gc = gspread.service_account_from_dict(credentials)
-
+raw_creds = dict(st.secrets["gcp_service_account"])
+if "private_key" in raw_creds:
+    raw_creds["private_key"] = raw_creds["private_key"].replace("\\n", "\n").strip()
+    gc = gspread.service_account_from_dict(raw_creds)
+    
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
