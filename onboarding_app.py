@@ -8,146 +8,210 @@ from docx import Document
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# --- SECRETS & REPO VERIFICATION ---
-# This matches your working JSON format perfectly
+# --- COMPLIANCE DATABASE SECRETS CONNECT ---
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
 # ==========================================
-# ADMINISTRATIVE LOGIN GATEKEEPER
+# ADMINISTRATIVE AUTHENTICATION GATEWAY
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("🪵 Knife & Ember Onboarding Suite")
-    st.subheader("🔒 Administrative Access Required")
+    st.title("🪵 Knife & Ember Workspace")
+    st.subheader("🔒 FSCO Administrative Authentication")
     
     password_input = st.text_input("System Password", type="password")
-    if st.button("Authenticate"):
+    if st.button("Authenticate Panel", use_container_width=True):
         if password_input == st.secrets["APP_PASSWORD"]:
             st.session_state.logged_in = True
             st.rerun()
         else:
-            st.error("Invalid credentials.")
+            st.error("Access Denied: Invalid Administrative Token.")
 
 # ==========================================
-# ADMINISTRATIVE WORKSPACE
+# ENTERPRISE FOOD SAFETY ONBOARDING FACTORY
 # ==========================================
 if st.session_state.logged_in:
-    st.title("🏭 FSMS Client Onboarding Factory")
-    st.markdown("Generate tailored prerequisite programs and automated audit infrastructure for new accounts.")
-    st.divider()
-
-    
-    # --- SECTION 1: CLIENT PROFILE ---
-    st.header("🏢 Client Profile Allocation")
-    client_name = st.text_input("Establishment Brand Name (e.g., Cafe Manila):", value="")
-    client_location = st.text_input("Operational Unit Address / Branch:", value="")
-    
+    st.title("🏭 FSMS Client Onboarding & Automation Factory")
+    st.markdown("Construct customized cloud audit frameworks and format-preserved prerequisite compliance manuals.")
     st.divider()
     
-    # --- SECTION 2: RISK PROFILE ---
-    st.header("🍕 Menu & Equipment Risk Profiling")
-    st.write("Toggle the specialized operational vectors active at this facility:")
+    # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
+    st.header("🏢 1. Establishment Architecture")
+    col1, col2 = st.columns(2)
+    with col1:
+        client_name = st.text_input("Brand Name / Legal Entity Name:", placeholder="e.g., Lava Craze Group")
+        client_location = st.text_input("Operational Unit Address / Province:", placeholder="e.g., Pampanga Cluster")
+    with col2:
+        facility_type = st.selectbox(
+            "Facility Operational Classification:",
+            ["Central Commissary Kitchen", "Commercial Cloud Kitchen Network", "Full-Service Dine-In Restaurant", "High-Volume Logistics / Distribution Hub"]
+        )
+        regulatory_scope = st.selectbox(
+            "Primary Regulatory Oversight Framework:",
+            ["FDA GHP/HACCP Mandatory Scope", "NMIS Meat Inspection Enforcement", "Local Government LGU Sanitation Code"]
+        )
+
+    st.divider()
     
-    has_poultry = st.checkbox("Facility processes raw poultry / deep-fried items")
-    has_dairy = st.checkbox("Facility operates espresso systems / temperature-controlled dairy")
-    has_seafood = st.checkbox("Facility handles raw seafood / high-risk marine proteins")
-    has_grease_trap = st.checkbox("Facility utilizes commercial underground grease traps")
+    # --- STEP 2: EXPANDED RISK & HAZARD PROFILING ENGINE ---
+    st.header("🎛️ 2. Advanced Hazard & Operational Profiling (The 20% Split)")
+    st.markdown("Toggle active high-risk vectors to determine dynamic Prerequisite Program (PRP) inclusions:")
+    
+    with st.expander("🛡️ Biological, Thermal & Cross-Contamination Vectors", expanded=True):
+        v_poultry = st.checkbox("Processing Raw Poultry / Mass Deep-Frying Operations (Salmonella/Campylobacter Control)")
+        v_thermal = st.checkbox("Extended Temperature-Controlled Holding / Dairy & Cream Systems (Listeria Monitoring)")
+        v_rte = st.checkbox("High-Risk Ready-to-Eat (RTE) Seafood / Raw Protein Assemblies (Vibrio/Parasite Protocols)")
+        v_vacuum = st.checkbox("Reduced Oxygen Packaging (ROP) / Sous-Vide Processing (Clostridium botulinum Control)")
+
+    with st.expander("🚰 Utility, Waste & Infrastructure Engineering", expanded=False):
+        v_well = st.checkbox("Utilizes Independent Ground Well-Water / On-site Water Filtration Matrix")
+        v_trap = st.checkbox("Commercial Sub-surface Grease Traps with High-Frequency Waste Output")
+        v_cold = st.checkbox("Operates Owned Active Cold-Chain Fleet / Logistics Cross-Docking")
 
     st.divider()
 
-    # --- SECTION 3: AUTOMATION ENGINE ---
-    if st.button("🔥 Run Client Deployment Engine", use_container_width=True):
-        if not client_name.strip():
-            st.error("Deployment halted: Please provide a valid Establishment Brand Name.")
+    # --- STEP 3: AUTOMATION EXECUTION ---
+    st.header("🚀 3. Execute Infrastructure Deployment")
+    if st.button("🔥 Compile & Provision Client Assets", use_container_width=True):
+        if not client_name.strip() or not client_location.strip():
+            st.error("Compilation Halted: Brand Name and Address parameters cannot be empty.")
         else:
-            # Clean up space characters for technical spreadsheet tabs
             formatted_sheet_name = client_name.strip().replace(" ", "_")
             
-            # --- PHASE 3A: GOOGLE SHEET TAB CREATION ---
-            with st.spinner("Step 1: Constructing cloud database infrastructure..."):
+            # --- PHASE A: DYNAMIC GOOGLE SHEET AUDIT FRAMEWORK GENERATION ---
+            with st.spinner("Provisioning synchronized Google Sheet architecture..."):
                 try:
                     db = gc.open("Audit_Database")
                     
-                    # Prevent overwriting an existing client tab
                     try:
                         db.worksheet(formatted_sheet_name)
-                        st.warning(f"Database infrastructure for {client_name} already exists.")
+                        st.warning(f"Database structures for '{formatted_sheet_name}' already active. Overwrite skipped.")
                     except gspread.exceptions.WorksheetNotFound:
-                        # Create a fresh sheet tab
-                        new_worksheet = db.add_worksheet(title=formatted_sheet_name, rows="100", cols="4")
+                        new_worksheet = db.add_worksheet(title=formatted_sheet_name, rows="150", cols="4")
+                        new_worksheet.append_row(["Module", "Ref ID", "Description", "Class"])
                         
-                        # Apply standard headers
-                        headers = ["Module", "Ref ID", "Description", "Class"]
-                        new_worksheet.append_row(headers)
-                        
-                        # Define the universal 80% Core Checklist rows
-                        core_checklist_rows = [
-                            ["Module 1: Personnel Hygiene", "1.1", "Staff observed washing hands for 20s before cooking.", "L1"],
-                            ["Module 1: Personnel Hygiene", "1.2", "Handwashing observed after touching face, phone, or trash.", "L1"],
-                            ["Module 1: Personnel Hygiene", "1.5", "Hand sinks fully stocked with soap and paper towels.", "L2"],
-                            ["Module 2: Thermal Control", "2.6", "Chiller/Reach-in units maintain food temp <= 41 F.", "L1"],
-                            ["Module 5: Sanitation, Pests & Infrastructure", "5.2", "Sanitizer (Chlorine/Quat) at correct ppm.", "L1"],
-                            ["Module 5: Sanitation, Pests & Infrastructure", "5.5", "No evidence of rodent droppings or gnaw marks.", "L1"]
+                        # Build a production-grade 80% Core Operational Checklist
+                        checklist_data = [
+                            ["Module 1: Personnel Hygiene", "1.1", "Food handlers observed executing verified 20-second handwashing protocols prior to station entry.", "L1"],
+                            ["Module 1: Personnel Hygiene", "1.2", "Handwashing executed post handling trash, un-sanitized surfaces, or personal communication mobile hardware.", "L1"],
+                            ["Module 1: Personnel Hygiene", "1.3", "Proper hair restraints, beard snoods, and clean protective uniform compliance checked across all active processing areas.", "L2"],
+                            ["Module 2: Thermal Control", "2.1", "Walk-in chillers and raw storage infrastructure maintain ambient temperatures strictly at or below 41°F (5°C).", "L1"],
+                            ["Module 2: Thermal Control", "2.2", "Blast freezing units maintain strict holding conditions holding items solid at or below 0°F (-18°C).", "L1"],
+                            ["Module 3: Cross-Contamination", "3.1", "Color-coded cutting boards and dedicated sanitizing processing knives utilized to enforce structural protein segregation.", "L1"],
+                            ["Module 4: Chemical Controls", "4.1", "Toxic compounds, cleaning detergents, and sanitizers stored inside restricted lockers fully isolated from food contact packaging zones.", "L2"],
+                            ["Module 5: Infrastructure & Pest Control", "5.1", "Integrated Pest Management (IPM) perimeter bait matrices and indoor mechanical multi-catch traps verified secure.", "L1"],
+                            ["Module 5: Infrastructure & Pest Control", "5.2", "Active food contact surface sanitizing steps utilize verified chemical titrations (Chlorine 50-100 ppm / Quat 200 ppm).", "L1"]
                         ]
                         
-                        # Dynamically inject 20% risk rows based on toggles
-                        if has_poultry:
-                            core_checklist_rows.append(["Module 2: Thermal Control", "2.1", "Fried Chicken batch internal temp >= 165 F for 15s.", "L1"])
-                        if has_dairy:
-                            core_checklist_rows.append(["Module 2: Thermal Control", "2.6", "Milk cooling and hold parameters strictly verified under 41 F.", "L1"])
-                        if has_grease_trap:
-                            core_checklist_rows.append(["Module 5: Sanitation, Pests & Infrastructure", "5.8", "Grease trap waste layer < 25% of total depth.", "L2"])
+                        # Dynamically inject the remaining 20% specialized critical risk parameters
+                        if facility_type == "Central Commissary Kitchen":
+                            checklist_data.append(["Module 6: Industrial Commissary Systems", "6.1", "Mass batch cooking cooling parameters track drop from 135°F to 70°F within 2 hours, and to 41°F within an additional 4 hours.", "L1"])
+                        if v_poultry:
+                            checklist_data.append(["Module 2: Thermal Control", "2.3", "Internal endpoint thermal processing for raw poultry logs minimum internal parameters of 165°F (74°C) for 15 seconds.", "L1"])
+                        if v_vacuum:
+                            checklist_data.append(["Module 2: Thermal Control", "2.4", "Sous-vide execution parameters utilize calibrated internal needle probes; raw cook data logs critical control deviations.", "L1"])
+                        if v_well:
+                            checklist_data.append(["Module 5: Infrastructure & Pest Control", "5.3", "Microbiological potability analysis records (Total Coliform/E. coli) updated monthly for private ground water well ports.", "L1"])
+                        if v_trap:
+                            checklist_data.append(["Module 5: Infrastructure & Pest Control", "5.4", "Grease traps verified free from structural blockage; waste layers check out below the standard 25% max accumulation line.", "L2"])
+                        if v_cold:
+                            checklist_data.append(["Module 7: Supply Chain Cold Logistics", "7.1", "Refrigerated distribution truck dataloggers confirm continuous transit temperatures below 41°F during out-of-hub shipments.", "L1"])
                             
-                        # Batch upload everything to the new tab
-                        new_worksheet.append_rows(core_checklist_rows)
-                        st.success(f"🟢 Google Sheet tab '{formatted_sheet_name}' successfully provisioned.")
+                        new_worksheet.append_rows(checklist_data)
+                        st.success(f"🟢 Cloud Database Framework Deployed.")
                 except Exception as e:
-                    st.error(f"Database Provisioning Failure: {e}")
+                    st.error(f"Google Sheets Integration Failure: {e}")
             
-            # --- PHASE 3B: WORD DOCUMENT CUSTOMIZATION ---
-            with st.spinner("Step 2: Slicing core master document structures..."):
-                # List of all possible folder and file case combinations
-                possible_paths = [
-                    "templates/master_core_fsms.docx",
-                    "Templates/master_core_fsms.docx",
-                    "standards/master_core_fsms.docx",
-                    "Standards/master_core_fsms.docx",
-                    "templates/Master_Core_Fsms.docx",
-                    "Templates/Master_Core_Fsms.docx"
-                ]
+            # --- PHASE B: FORMAT-PRESERVED TOKEN DOCUMENT PARSING ---
+            with st.spinner("Generating customized, format-preserved documentation..."):
+                master_path = "templates/master_core_fsms.docx"
                 
-                master_path = None
-                for path in possible_paths:
-                    if os.path.exists(path):
-                        master_path = path
-                        break
-                
-                if not master_path:
-                    st.error("Document Halted: Master file not found. Please verify the folder name matches exactly on GitHub.")
+                if not os.path.exists(master_path):
+                    st.error("Compilation Stopped: Master layout template file was not located inside the templates directory.")
                 else:
                     try:
+                        # Open the master file directly to preserve ALL formatting layouts, styles, and headers
                         doc = Document(master_path)
-                        new_doc = Document()
                         
-                        # Write the localized custom metadata cover blocks
-                        new_doc.add_heading(f"Food Safety Management System (FSMS)", level=0)
-                        new_doc.add_paragraph(f"Prepared For: {client_name}")
-                        new_doc.add_paragraph(f"Location: {client_location}")
-                        new_doc.add_paragraph("Compiled by Knife and Ember Food Consultancy Services")
-                        new_doc.add_page_break()
+                        # Generate the custom 20% text block based on active hazard checks
+                        dynamic_risk_text = ""
+                        if v_poultry:
+                            dynamic_risk_text += (
+                                "ADDENDUM CONTROL A-1: RAW POULTRY & THERMAL PROCESS PROTOCOLS\n"
+                                "Enforced under NMIS guidelines. All raw poultry processing lines must maintain a strict physical boundary "
+                                "segregation from ready-to-eat assembly stations. The continuous batch deep-frying systems must be monitored "
+                                "using calibrated digital stem thermometers. The critical control limit requires an internal core temperature "
+                                "of >=165°F (74°C) maintained for at least 15 continuous seconds. Frying oil chemistry metrics must be verified "
+                                "using total polar material (TPM) test strips daily.\n\n"
+                            )
+                        if v_thermal:
+                            dynamic_risk_text += (
+                                "ADDENDUM CONTROL A-2: COLD CHAIN HOLDING & LIQUID DAIRY CONTROLS\n"
+                                "To manage risk profiles associated with Listeria monocytogenes, open dairy systems, cream batches, and espresso "
+                                "steamer arrays must execute a high-frequency sanitation cycle. Ambient holding units must maintain continuous "
+                                "metrics at or below 41°F (5°C). Any product breaching this temperature envelope for more than 2 hours must be flagged for disposal.\n\n"
+                            )
+                        if v_well:
+                            dynamic_risk_text += (
+                                "ADDENDUM CONTROL B-1: INDEPENDENT WATER DISTRIBUTION & TESTING METRICS\n"
+                                "Because the facility utilizes private sub-surface ground water wells, water safety compliance falls under local "
+                                "LGU Sanitation codes. The facility must run an active on-site chlorination pump matrix maintaining free residual "
+                                "chlorine at 0.5 ppm to 1.5 ppm at all distribution lines. Physical water logs must include monthly total coliform "
+                                "and E. coli laboratory potability certificates.\n\n"
+                            )
+                        if v_trap:
+                            dynamic_risk_text += (
+                                "ADDENDUM CONTROL B-2: WASTEWATER INTERCEPTION & GREASE TRAP MANAGEMENT\n"
+                                "Commercial grease interceptors must undergo a rigorous cleaning schedule executed at a minimum frequency of every "
+                                "14 operating days. The FSCO must inspect structural grease layers to ensure total solid accumulation remains below "
+                                "the 25% system threshold capacity rule.\n\n"
+                            )
                         
-                        # Duplicate content layout mapping 
-                        for paragraph in doc.paragraphs:
-                            new_doc.add_paragraph(paragraph.text)
+                        if not dynamic_risk_text:
+                            dynamic_risk_text = "No additional high-risk operational vectors declared for this profile allocation."
+
+                        # High-Grade Run-Level Character Substitution Function (Preserves Fonts & Styles)
+                        def format_preserved_replace(target_doc, token, replacement):
+                            for paragraph in target_doc.paragraphs:
+                                if token in paragraph.text:
+                                    for run in paragraph.runs:
+                                        if token in run.text:
+                                            run.text = run.text.replace(token, replacement)
+                            
+                            for table in target_doc.tables:
+                                for row in table.rows:
+                                    for cell in row.cells:
+                                        for paragraph in cell.paragraphs:
+                                            if token in paragraph.text:
+                                                for run in paragraph.runs:
+                                                    if token in run.text:
+                                                        run.text = run.text.replace(token, replacement)
+                                                        
+                            for section in target_doc.sections:
+                                for paragraph in section.header.paragraphs:
+                                    if token in paragraph.text:
+                                        for run in paragraph.runs:
+                                            if token in run.text:
+                                                run.text = run.text.replace(token, replacement)
+                                for paragraph in section.footer.paragraphs:
+                                    if token in paragraph.text:
+                                        for run in paragraph.runs:
+                                            if token in run.text:
+                                                run.text = run.text.replace(token, replacement)
+
+                        # Execute font-safe character substitutions
+                        format_preserved_replace(doc, "{{CLIENT_NAME}}", client_name.strip())
+                        format_preserved_replace(doc, "{{LOCATION}}", client_location.strip())
+                        format_preserved_replace(doc, "{{RISK_OPERATIONAL_PROCEDURES}}", dynamic_risk_text)
+
+                        output_filename = f"{formatted_sheet_name}_Tailored_FSMS.docx"
+                        doc.save(output_filename)
+                        st.success("🟢 Format-preserved executive manuals compiled cleanly.")
                         
-                        output_filename = f"{formatted_sheet_name}_FSMS_Manual.docx"
-                        new_doc.save(output_filename)
-                        st.success("🟢 Customized compliance manuals cleanly compiled.")
-                        
-                        # Show download button to save to your local machine
+                        # Expose the download button portal
                         with open(output_filename, "rb") as file:
                             st.download_button(
-                                label="📥 Download Tailored FSMS Manual (.docx)",
+                                label=f"📥 Download Tailored FSMS Manual for {client_name} (.docx)",
                                 data=file,
                                 file_name=output_filename,
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -156,8 +220,4 @@ if st.session_state.logged_in:
                         os.remove(output_filename)
                         
                     except Exception as e:
-                        st.error(f"Document Generation Failure: {e}")
-
-    # --- FOOTER CONTROLS ---
-    st.divider()
-    st.caption("Knife and Ember Food Safety Infrastructure Automation Engine")
+                        st.error(f"Word Engine Token Modification Failure: {e}")
