@@ -7,6 +7,9 @@ import os
 from fpdf import FPDF
 import json
 import docx
+from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+import numpy as np
 
 # --- SECURE CLOUD SETUP ---
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -236,9 +239,28 @@ if st.session_state.logged_in:
                         st.error(f"Error consulting SOPs: {e}")
 
         st.divider()
+        st.subheader("🖋️ Verification & Sign-Off")
+        st.write("Sign inside the boundary panel below to authenticate this verification log:")
+
+        # Initialize the sketch pad layout
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",  # Transparent layer background
+            stroke_width=3,                      # Precision ink thickness
+            stroke_color="#000000",              # Clinical black ink color
+            background_color="#FFFFFF",          # Boundary pad color background
+            height=150,                          # Optimized for mobile aspect ratios
+            width=400,                           # Standard mobile viewing horizontal boundary
+            drawing_mode="freedraw",
+            key="fsco_signature",
+            update_streamlit=True
+        )
+
+        st.divider()
 
         # --- THE MASTER ENGINE (Final Report Generator) ---
         if st.button("🔥 Process Metrics & Generate Final Report", use_container_width=True):
+
+            
             
             deductions = 0
             count_L1, count_L2, count_L3 = 0, 0, 0
@@ -412,6 +434,25 @@ if st.session_state.logged_in:
             
             st.subheader("🤖 Generated Executive Summary")
             st.write(st.session_state.cached_report_text)
+
+            # --- PROCESS CANVAS IMAGE MATRIX ---
+            signature_saved = False
+            if canvas_result.image_data is not None:
+                img_matrix = canvas_result.image_data
+                
+                # Check if the user actually sketched on the canvas grid
+                if np.any(img_matrix[:, :, 3] > 0): 
+                    # Convert raw numpy array matrix to a clean image file
+                    raw_sketch = Image.fromarray(img_matrix.astype('uint8'), 'RGBA')
+                    
+                    # Convert transparent components to standard clean white RGB
+                    rgb_signature = Image.new("RGB", raw_sketch.size, (255, 255, 255))
+                    rgb_signature.paste(raw_sketch, mask=raw_sketch.split()[3])
+                    
+                    # Output image temporarily to disk storage
+                    temp_sig_path = "fsco_signature_temp.png"
+                    rgb_signature.save(temp_sig_path, "PNG")
+                    signature_saved = True
             
             try:
                 pdf = FPDF()
@@ -482,6 +523,17 @@ if st.session_state.logged_in:
                     else:
                         pdf.set_font("Times", '', 9)
                         pdf.multi_cell(0, 5, line.replace('**', ''))
+
+                # ==========================================
+                # PART B: PRINT SIGNATURE ONTO PDF (NEW)
+                # ==========================================
+                if signature_saved and os.path.exists("fsco_signature_temp.png"):
+                    pdf.ln(10)
+                    pdf.set_font("Times", 'B', 9)
+                    pdf.cell(0, 5, txt="Authorized Verification Signature:", ln=True)
+                    pdf.ln(2)
+                    pdf.image("fsco_signature_temp.png", x=12, w=55)
+                    os.remove("fsco_signature_temp.png") # Clear file from the system
                 
                 pdf_filename = f"Audit_Report_{audit_date}.pdf"
                 pdf.output(pdf_filename)
