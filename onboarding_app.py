@@ -35,14 +35,7 @@ if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding Factory")
     st.markdown("Generate tailored prerequisite programs and automated audit infrastructure for new accounts.")
     st.divider()
-    # 🔍 TEMPORARY DIAGNOSTIC TOOL
-    st.info("📂 Server Directory Scan:")
-    for root, dirs, files in os.walk("."):
-        # Ignore hidden git/venv system folders to keep it clean
-        if ".git" not in root and ".streamlit" not in root:
-            for file in files:
-                st.write(os.path.join(root, file))
-    st.divider()
+
     
     # --- SECTION 1: CLIENT PROFILE ---
     st.header("🏢 Client Profile Allocation")
