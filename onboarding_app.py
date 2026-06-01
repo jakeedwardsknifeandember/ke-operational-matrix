@@ -2,18 +2,24 @@ import streamlit as st
 import gspread
 import json
 import os
+import google.generativeai as genai
 from docx import Document
 
 # --- SESSION STATE INITIALIZATION ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# --- COMPLIANCE DATABASE SECRETS CONNECT ---
+# --- COMPLIANCE DATABASE & AI INITIALIZATION ---
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
+# Configure the Gemini API Key from your vault
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# Using the stable pro model for complex compliance analysis
+model = genai.GenerativeModel('gemini-1.5-pro')
+
 # ==========================================
-# ADMINISTRATIVE AUTHENTICATION GATEWAY
+# ADMINISTRATIVE GATEKEEPER
 # ==========================================
 if not st.session_state.logged_in:
     st.title("🪵 Knife & Ember Workspace")
@@ -28,11 +34,11 @@ if not st.session_state.logged_in:
             st.error("Access Denied: Invalid Administrative Token.")
 
 # ==========================================
-# ENTERPRISE FOOD SAFETY ONBOARDING FACTORY
+# ENTERPRISE AI ONBOARDING FACTORY
 # ==========================================
 if st.session_state.logged_in:
-    st.title("🏭 FSMS Client Onboarding & Automation Factory")
-    st.markdown("Construct customized cloud audit frameworks and format-preserved prerequisite compliance manuals.")
+    st.title("🏭 FSMS Client Onboarding & AI Factory")
+    st.markdown("Generate smart, AI-tailored compliance manuals that preserve your professional document design layouts.")
     st.divider()
     
     # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
@@ -53,9 +59,9 @@ if st.session_state.logged_in:
 
     st.divider()
     
-    # --- STEP 2: EXPANDED RISK & HAZARD PROFILING ENGINE ---
-    st.header("🎛️ 2. Advanced Hazard & Operational Profiling (The 20% Split)")
-    st.markdown("Toggle active high-risk vectors to determine dynamic Prerequisite Program (PRP) inclusions:")
+    # --- STEP 2: HAck-Proof RISK MATRIX ---
+    st.header("🎛️ 2. Advanced Hazard & Operational Profiling")
+    st.markdown("Toggle active hazard vectors to guide the Gemini compliance generation engine:")
     
     with st.expander("🛡️ Biological, Thermal & Cross-Contamination Vectors", expanded=True):
         v_poultry = st.checkbox("Processing Raw Poultry / Mass Deep-Frying Operations (Salmonella/Campylobacter Control)")
@@ -71,144 +77,113 @@ if st.session_state.logged_in:
     st.divider()
 
     # --- STEP 3: AUTOMATION EXECUTION ---
-    st.header("🚀 3. Execute Infrastructure Deployment")
-    if st.button("🔥 Compile & Provision Client Assets", use_container_width=True):
+    st.header("🚀 3. Execute AI Document Generation")
+    if st.button("🔥 Run AI Compilation Engine", use_container_width=True):
         if not client_name.strip() or not client_location.strip():
             st.error("Compilation Halted: Brand Name and Address parameters cannot be empty.")
         else:
             formatted_sheet_name = client_name.strip().replace(" ", "_")
+            master_path = "templates/master_core_fsms.docx"
             
-            # --- PHASE A: DYNAMIC GOOGLE SHEET AUDIT FRAMEWORK GENERATION ---
-            with st.spinner("Provisioning synchronized Google Sheet architecture..."):
-                try:
-                    db = gc.open("Audit_Database")
+            if not os.path.exists(master_path):
+                st.error("Compilation Stopped: master_core_fsms.docx was not located inside your templates directory.")
+            else:
+                # --- PHASE A: READ MASTER DATA FOR AI CONTEXT ---
+                with st.spinner("Analyzing master_core_fsms.docx structure..."):
+                    try:
+                        template_doc = Document(master_path)
+                        # Extract raw text to give Gemini context on your exact writing style
+                        core_text = "\n".join([p.text for p in template_doc.paragraphs if p.text.strip()])
+                    except Exception as e:
+                        st.error(f"Failed to read master layout text: {e}")
+                        st.stop()
+
+                # --- PHASE B: LIVE AI CUSTOMIZATION FRAMEWORK ---
+                with st.spinner(f"Gemini AI is intelligently customizing your manual for {client_name}..."):
+                    # Build active vectors string
+                    active_vectors = []
+                    if v_poultry: active_vectors.append("Raw Poultry Processing / Mass Deep-Frying")
+                    if v_thermal: active_vectors.append("Extended Cold/Dairy Temp Control")
+                    if v_rte: active_vectors.append("Ready-to-Eat Seafood Assembly")
+                    if v_vacuum: active_vectors.append("Sous-Vide / Reduced Oxygen Packaging")
+                    if v_well: active_vectors.append("Independent Ground Well-Water Extraction")
+                    if v_trap: active_vectors.append("Commercial Grease Interceptors")
+                    if v_cold: active_vectors.append("Owned Cold-Chain Logistics Fleet")
                     
+                    vectors_str = ", ".join(active_vectors) if active_vectors else "Standard Low-Risk Baseline Operations"
+
+                    # Construct the prompt to guide Gemini's generation
+                    ai_prompt = f"""
+                    You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
+                    Your task is to take the baseline text of our manual and rewrite it into a highly tailored, custom manual for our new client.
+
+                    CLIENT PROFILE DATA:
+                    - Client Name: {client_name}
+                    - Location/Branch: {client_location}
+                    - Facility Type: {facility_type}
+                    - Primary Regulation Scope: {regulatory_scope}
+                    - High-Risk Operational Vectors: {vectors_str}
+
+                    CORE TEMPLATE MANUAL TEXT (Follow this exact tone and structure):
+                    {core_text}
+
+                    CRITICAL GENERATION INSTRUCTIONS:
+                    1. Maintain the exact layout structure from the template (e.g., 1. Purpose, 2. Scope, 3. Definitions, 4. Responsibility, 5. Procedure, etc.).
+                    2. Intelligently integrate the client's name and location naturally throughout the clauses.
+                    3. Under the Procedures/Monitoring sections, add highly specific, expert standard operating procedures tailored directly to their active high-risk vectors (e.g., if they handle poultry, write specific rules regarding poultry cross-contamination, breading stations, and minimum internal cooking temperatures of 165°F).
+                    4. Output the finalized document content as clear text lines. Do not use markdown syntax or asterisks. If a line represents a heading (e.g., 1. Purpose), ensure it matches that format perfectly.
+                    """
+
                     try:
-                        db.worksheet(formatted_sheet_name)
-                        st.warning(f"Database structures for '{formatted_sheet_name}' already active. Overwrite skipped.")
-                    except gspread.exceptions.WorksheetNotFound:
-                        new_worksheet = db.add_worksheet(title=formatted_sheet_name, rows="150", cols="4")
-                        new_worksheet.append_row(["Module", "Ref ID", "Description", "Class"])
-                        
-                        # Build a production-grade 80% Core Operational Checklist
-                        checklist_data = [
-                            ["Module 1: Personnel Hygiene", "1.1", "Food handlers observed executing verified 20-second handwashing protocols prior to station entry.", "L1"],
-                            ["Module 1: Personnel Hygiene", "1.2", "Handwashing executed post handling trash, un-sanitized surfaces, or personal communication mobile hardware.", "L1"],
-                            ["Module 1: Personnel Hygiene", "1.3", "Proper hair restraints, beard snoods, and clean protective uniform compliance checked across all active processing areas.", "L2"],
-                            ["Module 2: Thermal Control", "2.1", "Walk-in chillers and raw storage infrastructure maintain ambient temperatures strictly at or below 41°F (5°C).", "L1"],
-                            ["Module 2: Thermal Control", "2.2", "Blast freezing units maintain strict holding conditions holding items solid at or below 0°F (-18°C).", "L1"],
-                            ["Module 3: Cross-Contamination", "3.1", "Color-coded cutting boards and dedicated sanitizing processing knives utilized to enforce structural protein segregation.", "L1"],
-                            ["Module 4: Chemical Controls", "4.1", "Toxic compounds, cleaning detergents, and sanitizers stored inside restricted lockers fully isolated from food contact packaging zones.", "L2"],
-                            ["Module 5: Infrastructure & Pest Control", "5.1", "Integrated Pest Management (IPM) perimeter bait matrices and indoor mechanical multi-catch traps verified secure.", "L1"],
-                            ["Module 5: Infrastructure & Pest Control", "5.2", "Active food contact surface sanitizing steps utilize verified chemical titrations (Chlorine 50-100 ppm / Quat 200 ppm).", "L1"]
-                        ]
-                        
-                        # Dynamically inject the remaining 20% specialized critical risk parameters
-                        if facility_type == "Central Commissary Kitchen":
-                            checklist_data.append(["Module 6: Industrial Commissary Systems", "6.1", "Mass batch cooking cooling parameters track drop from 135°F to 70°F within 2 hours, and to 41°F within an additional 4 hours.", "L1"])
-                        if v_poultry:
-                            checklist_data.append(["Module 2: Thermal Control", "2.3", "Internal endpoint thermal processing for raw poultry logs minimum internal parameters of 165°F (74°C) for 15 seconds.", "L1"])
-                        if v_vacuum:
-                            checklist_data.append(["Module 2: Thermal Control", "2.4", "Sous-vide execution parameters utilize calibrated internal needle probes; raw cook data logs critical control deviations.", "L1"])
-                        if v_well:
-                            checklist_data.append(["Module 5: Infrastructure & Pest Control", "5.3", "Microbiological potability analysis records (Total Coliform/E. coli) updated monthly for private ground water well ports.", "L1"])
-                        if v_trap:
-                            checklist_data.append(["Module 5: Infrastructure & Pest Control", "5.4", "Grease traps verified free from structural blockage; waste layers check out below the standard 25% max accumulation line.", "L2"])
-                        if v_cold:
-                            checklist_data.append(["Module 7: Supply Chain Cold Logistics", "7.1", "Refrigerated distribution truck dataloggers confirm continuous transit temperatures below 41°F during out-of-hub shipments.", "L1"])
-                            
-                        new_worksheet.append_rows(checklist_data)
-                        st.success(f"🟢 Cloud Database Framework Deployed.")
-                except Exception as e:
-                    st.error(f"Google Sheets Integration Failure: {e}")
-            
-            # --- PHASE B: FORMAT-PRESERVED TOKEN DOCUMENT PARSING ---
-            with st.spinner("Generating customized, format-preserved documentation..."):
-                master_path = "templates/master_core_fsms.docx"
-                
-                if not os.path.exists(master_path):
-                    st.error("Compilation Stopped: Master layout template file was not located inside the templates directory.")
-                else:
+                        response = model.generate_content(ai_prompt)
+                        ai_output_text = response.text
+                    except Exception as e:
+                        st.error(f"Gemini AI Generation Failure: {e}")
+                        st.stop()
+
+                # --- PHASE C: RECONSTRUCT DOCUMENT AND PRESERVE FORMATTING ---
+                with st.spinner("Injecting AI text back into your styled layout..."):
                     try:
-                        # Open the master file directly to preserve ALL formatting layouts, styles, and headers
-                        doc = Document(master_path)
+                        # Open a fresh instance of your master file to inherit its margins, fonts, and headers
+                        final_doc = Document(master_path)
                         
-                        # Generate the custom 20% text block based on active hazard checks
-                        dynamic_risk_text = ""
-                        if v_poultry:
-                            dynamic_risk_text += (
-                                "ADDENDUM CONTROL A-1: RAW POULTRY & THERMAL PROCESS PROTOCOLS\n"
-                                "Enforced under NMIS guidelines. All raw poultry processing lines must maintain a strict physical boundary "
-                                "segregation from ready-to-eat assembly stations. The continuous batch deep-frying systems must be monitored "
-                                "using calibrated digital stem thermometers. The critical control limit requires an internal core temperature "
-                                "of >=165°F (74°C) maintained for at least 15 continuous seconds. Frying oil chemistry metrics must be verified "
-                                "using total polar material (TPM) test strips daily.\n\n"
-                            )
-                        if v_thermal:
-                            dynamic_risk_text += (
-                                "ADDENDUM CONTROL A-2: COLD CHAIN HOLDING & LIQUID DAIRY CONTROLS\n"
-                                "To manage risk profiles associated with Listeria monocytogenes, open dairy systems, cream batches, and espresso "
-                                "steamer arrays must execute a high-frequency sanitation cycle. Ambient holding units must maintain continuous "
-                                "metrics at or below 41°F (5°C). Any product breaching this temperature envelope for more than 2 hours must be flagged for disposal.\n\n"
-                            )
-                        if v_well:
-                            dynamic_risk_text += (
-                                "ADDENDUM CONTROL B-1: INDEPENDENT WATER DISTRIBUTION & TESTING METRICS\n"
-                                "Because the facility utilizes private sub-surface ground water wells, water safety compliance falls under local "
-                                "LGU Sanitation codes. The facility must run an active on-site chlorination pump matrix maintaining free residual "
-                                "chlorine at 0.5 ppm to 1.5 ppm at all distribution lines. Physical water logs must include monthly total coliform "
-                                "and E. coli laboratory potability certificates.\n\n"
-                            )
-                        if v_trap:
-                            dynamic_risk_text += (
-                                "ADDENDUM CONTROL B-2: WASTEWATER INTERCEPTION & GREASE TRAP MANAGEMENT\n"
-                                "Commercial grease interceptors must undergo a rigorous cleaning schedule executed at a minimum frequency of every "
-                                "14 operating days. The FSCO must inspect structural grease layers to ensure total solid accumulation remains below "
-                                "the 25% system threshold capacity rule.\n\n"
-                            )
+                        # Clear out the old placeholder body text paragraphs safely
+                        # (This leaves the pre-loaded document styles and headers completely intact)
+                        for p in final_doc.paragraphs:
+                            p.text = ""
                         
-                        if not dynamic_risk_text:
-                            dynamic_risk_text = "No additional high-risk operational vectors declared for this profile allocation."
-
-                        # High-Grade Run-Level Character Substitution Function (Preserves Fonts & Styles)
-                        def format_preserved_replace(target_doc, token, replacement):
-                            for paragraph in target_doc.paragraphs:
-                                if token in paragraph.text:
-                                    for run in paragraph.runs:
-                                        if token in run.text:
-                                            run.text = run.text.replace(token, replacement)
+                        # Split AI response into individual paragraph rows
+                        ai_paragraphs = ai_output_text.split("\n")
+                        
+                        for line in ai_paragraphs:
+                            cleaned_line = line.strip()
+                            if not cleaned_line:
+                                continue
                             
-                            for table in target_doc.tables:
-                                for row in table.rows:
-                                    for cell in row.cells:
-                                        for paragraph in cell.paragraphs:
-                                            if token in paragraph.text:
-                                                for run in paragraph.runs:
-                                                    if token in run.text:
-                                                        run.text = run.text.replace(token, replacement)
-                                                        
-                            for section in target_doc.sections:
-                                for paragraph in section.header.paragraphs:
-                                    if token in paragraph.text:
-                                        for run in paragraph.runs:
-                                            if token in run.text:
-                                                run.text = run.text.replace(token, replacement)
-                                for paragraph in section.footer.paragraphs:
-                                    if token in paragraph.text:
-                                        for run in paragraph.runs:
-                                            if token in run.text:
-                                                run.text = run.text.replace(token, replacement)
+                            # Detect if the line represents a core structured heading
+                            # (Checks if it starts with a number followed by a period, like "1. " or "5.1 ")
+                            is_heading = False
+                            first_word = cleaned_line.split(" ")[0]
+                            if first_word and first_word[0].isdigit() and "." in first_word:
+                                is_heading = True
+                            
+                            # Add the paragraph back using your template's built-in formatting styles
+                            if is_heading:
+                                new_p = final_doc.add_paragraph(cleaned_line)
+                                new_p.style = final_doc.styles['Heading 1'] if "." not in first_word[first_word.find(".")+1:] else final_doc.styles['Heading 2']
+                                # Force bold styles onto heading parameters
+                                for run in new_p.runs:
+                                    run.bold = True
+                            else:
+                                new_p = final_doc.add_paragraph(cleaned_line)
+                                new_p.style = final_doc.styles['Normal']
 
-                        # Execute font-safe character substitutions
-                        format_preserved_replace(doc, "{{CLIENT_NAME}}", client_name.strip())
-                        format_preserved_replace(doc, "{{LOCATION}}", client_location.strip())
-                        format_preserved_replace(doc, "{{RISK_OPERATIONAL_PROCEDURES}}", dynamic_risk_text)
-
-                        output_filename = f"{formatted_sheet_name}_Tailored_FSMS.docx"
-                        doc.save(output_filename)
-                        st.success("🟢 Format-preserved executive manuals compiled cleanly.")
+                        # Save the fully compiled, styled output file
+                        output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
+                        final_doc.save(output_filename)
+                        st.success(f"🟢 Customized, styled manual compiled for {client_name}!")
                         
-                        # Expose the download button portal
+                        # Expose the secure download portal
                         with open(output_filename, "rb") as file:
                             st.download_button(
                                 label=f"📥 Download Tailored FSMS Manual for {client_name} (.docx)",
@@ -220,4 +195,4 @@ if st.session_state.logged_in:
                         os.remove(output_filename)
                         
                     except Exception as e:
-                        st.error(f"Word Engine Token Modification Failure: {e}")
+                        st.error(f"Style Preservation Mapping Failure: {e}")
