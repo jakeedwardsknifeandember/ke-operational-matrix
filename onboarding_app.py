@@ -14,7 +14,7 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# Safely configures the API key from your environment dashboard
+# Configure the Gemini API Key from your vault safely
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash')
 
@@ -38,7 +38,7 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Generate clean, AI-tailored compliance manuals with absolute style and formatting preservation.")
+    st.markdown("Generate smart, clean compliance manuals matching your custom consulting design templates exactly.")
     st.divider()
     
     # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
@@ -112,21 +112,21 @@ if st.session_state.logged_in:
 
                     ai_prompt = f"""
                     You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
-                    Your task is to rewrite our master baseline text into an immaculate, professional compliance manual tailored exclusively for {client_name}.
+                    Your task is to rewrite our master baseline text into an immaculate compliance manual tailored for {client_name}.
 
-                    CLIENT ARCHITECTURE:
+                    CLIENT PROFILE DATA:
                     - Client Name: {client_name}
                     - Location/Branch: {client_location}
                     - Facility Type: {facility_type}
                     - Primary Regulation Scope: {regulatory_scope}
                     - High-Risk Operational Vectors: {vectors_str}
 
-                    CORE TEMPLATE MANUAL TEXT:
+                    CORE TEMPLATE MANUAL TEXT STRUCTURE:
                     {core_text}
 
-                    CRITICAL GENERATION INSTRUCTIONS (EXPLICIT DESIGN RULES):
-                    1. Separate EVERY distinct Prerequisite Program (PRP) and Standard Operating Procedure (SOP) by printing the exact text token string "[PAGE_BREAK]" on its own separate line. Do not group multiple programs together continuous without this token.
-                    2. For each individual program, follow the strict 9-section framework layout:
+                    ABSOLUTE COMMAND LAYOUT INSTRUCTIONS:
+                    1. Separate every distinct Prerequisite Program (PRP) and Standard Operating Procedure (SOP) by printing the single line text token "[PAGE_BREAK]".
+                    2. For each program, you must include the full numbered prefix for the core 9 headings exactly like this:
                        1. Purpose
                        2. Scope
                        3. Definitions
@@ -136,9 +136,10 @@ if st.session_state.logged_in:
                        7. Corrective Action
                        8. Verification
                        9. Records
-                    3. Intelligently embed the client's localized details ({client_name}, {client_location}) natively into the procedural text clauses.
-                    4. Integrate expert-level standard protocols for their active risk vectors (e.g., specific rules regarding poultry cross-contamination, breading stations, and internal cooking thresholds if raw poultry is checked).
-                    5. DO NOT use markdown characters, asterisks (**), or hashtags (##) for headings. Output plain, clean text lines.
+                    3. For subheadings inside section 5, you must prefix with clause numbers (e.g., '5.1 Personal Cleanliness and Uniform Standards', '5.2 Handwashing Protocol').
+                    4. For specific operational item definition fields under procedures, output them using a plain keyword label prefix followed by a colon (e.g., 'Uniforms: All staff must arrive...', 'Method: Staff must scrub...', 'Reporting: Staff must report...').
+                    5. DO NOT generate markdown characters, tables, asterisks (**), or hashtags (##). 
+                    6. DO NOT copy any source bracket footnotes, citations, or numbers like or trailing citation superscript digits. Output only clean text sentences.
                     """
 
                     try:
@@ -148,12 +149,12 @@ if st.session_state.logged_in:
                         st.error(f"Gemini AI Generation Failure: {e}")
                         st.stop()
 
-                # --- PHASE C: RECONSTRUCT DOCUMENT AND FORCE LAYOUT ENGINE ---
-                with st.spinner("Executing run-level styling overrides (Times New Roman 9pt)..."):
+                # --- PHASE C: RECONSTRUCT DOCUMENT WITH ABSOLUTE TYPOGRAPHY LAYOUT ENGINE ---
+                with st.spinner("Reconstructing layout and formatting (Times New Roman 9pt)..."):
                     try:
                         final_doc = Document(master_path)
                         
-                        # Wipe out old raw text data placeholders safely
+                        # Wipe placeholder body text blocks cleanly
                         for p in final_doc.paragraphs:
                             p.text = ""
                         
@@ -164,38 +165,62 @@ if st.session_state.logged_in:
                             if not cleaned_line:
                                 continue
                             
-                            # Catch the delimiter token and execute a clear document page break
+                            # Catch the page break delimiter
                             if cleaned_line == "[PAGE_BREAK]":
                                 final_doc.add_page_break()
                                 continue
                             
-                            # Strip out any runaway markdown bold indicators left by the AI
-                            cleaned_line = cleaned_line.replace("**", "").replace("*", "")
+                            # Strip lingering markdown text formatting symbols
+                            cleaned_line = cleaned_line.replace("**", "").replace("*", "").replace("##", "").replace("#", "")
                             
-                            # Identify structural headers (e.g., "1. Purpose", "5.1 Uniforms")
-                            is_heading = False
+                            # Identify full-line heading clauses (e.g., starts with a number "1. Purpose" or "5.1 ")
+                            is_full_heading = False
                             first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
                             if first_word and first_word[0].isdigit() and "." in first_word:
-                                is_heading = True
+                                is_full_heading = True
                             
-                            # Construct the paragraph elements and attach strict run styling parameters
                             new_p = final_doc.add_paragraph()
-                            run = new_p.add_run(cleaned_line)
                             
-                            # Explicitly force typography formatting onto the run layers
-                            run.font.name = 'Times New Roman'
-                            run.font.size = Pt(9)
-                            
-                            if is_heading:
+                            if is_full_heading:
+                                # Section Headings - Entire sentence bolded
+                                run = new_p.add_run(cleaned_line)
+                                run.font.name = 'Times New Roman'
+                                run.font.size = Pt(9)
                                 run.bold = True
                                 new_p.paragraph_format.space_before = Pt(12)
                                 new_p.paragraph_format.space_after = Pt(4)
+                            
+                            elif ":" in cleaned_line and not cleaned_line.startswith("http"):
+                                # Inline Definition Layout (e.g., "Uniforms: All staff...")
+                                label_part, text_part = cleaned_line.split(":", 1)
+                                
+                                # Add and bold the keyword label run
+                                label_run = new_p.add_run(label_part + ":")
+                                label_run.font.name = 'Times New Roman'
+                                label_run.font.size = Pt(9)
+                                label_run.bold = True
+                                
+                                # Add the rest of the descriptive sentence run as normal text
+                                text_run = new_p.add_run(text_part)
+                                text_run.font.name = 'Times New Roman'
+                                text_run.font.size = Pt(9)
+                                text_run.bold = False
+                                
+                                new_p.paragraph_format.space_before = Pt(2)
+                                new_p.paragraph_format.space_after = Pt(3)
+                                
                             else:
+                                # Standard body text lines
+                                run = new_p.add_run(cleaned_line)
+                                run.font.name = 'Times New Roman'
+                                run.font.size = Pt(9)
+                                run.bold = False
+                                new_p.paragraph_format.space_before = Pt(0)
                                 new_p.paragraph_format.space_after = Pt(3)
 
                         output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
                         final_doc.save(output_filename)
-                        st.success(f"🟢 Tailored, formatted manual compiled for {client_name}!")
+                        st.success(f"🟢 Fully customized compliance manual compiled successfully for {client_name}!")
                         
                         with open(output_filename, "rb") as file:
                             st.download_button(
