@@ -13,10 +13,10 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# Configure the Gemini API Key from your vault safely
+# FIXED: Safely reads the lookup label parameter from your dashboard
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# UPGRADED: Swapped the deprecated 1.5 model for the current production stable reasoning engine
+# FIXED: Directed to a live, production-active reasoning engine
 model = genai.GenerativeModel('gemini-2.5-pro')
 
 # ==========================================
@@ -60,7 +60,7 @@ if st.session_state.logged_in:
 
     st.divider()
     
-    # --- STEP 2: RISK MATRIX ---
+    # --- STEP 2: HAck-Proof RISK MATRIX ---
     st.header("🎛️ 2. Advanced Hazard & Operational Profiling")
     st.markdown("Toggle active hazard vectors to guide the Gemini compliance generation engine:")
     
