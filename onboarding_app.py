@@ -14,9 +14,9 @@ credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
 # Configure the Gemini API Key from your vault
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+genai.configure(api_key=st.secrets["AIzaSyBi95Az__u9kNTHsZGWZ8iA3t3vc4KhCx8"])
 # Using the stable pro model for complex compliance analysis
-model = genai.GenerativeModel('gemini-1.5-pro')
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 # ==========================================
 # ADMINISTRATIVE GATEKEEPER
