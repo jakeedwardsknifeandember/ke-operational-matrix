@@ -17,7 +17,7 @@ gc = gspread.service_account_from_dict(credentials)
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # FIXED: Directed to a live, production-active reasoning engine
-model = genai.GenerativeModel('gemini-2.5-pro')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 # ==========================================
 # ADMINISTRATIVE GATEKEEPER
