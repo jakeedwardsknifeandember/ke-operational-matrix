@@ -13,11 +13,11 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# FIXED: Points directly to the key name defined in your Streamlit secrets dashboard
+# Configure the Gemini API Key from your vault safely
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# Using the stable pro model via the updated naming convention to satisfy the gateway
-model = genai.GenerativeModel('gemini-1.5-pro-latest')
+# UPGRADED: Swapped the deprecated 1.5 model for the current production stable reasoning engine
+model = genai.GenerativeModel('gemini-2.5-pro')
 
 # ==========================================
 # ADMINISTRATIVE GATEKEEPER
@@ -93,7 +93,6 @@ if st.session_state.logged_in:
                 with st.spinner("Analyzing master_core_fsms.docx structure..."):
                     try:
                         template_doc = Document(master_path)
-                        # Extract raw text to give Gemini context on your exact writing style
                         core_text = "\n".join([p.text for p in template_doc.paragraphs if p.text.strip()])
                     except Exception as e:
                         st.error(f"Failed to read master layout text: {e}")
@@ -101,7 +100,6 @@ if st.session_state.logged_in:
 
                 # --- PHASE B: LIVE AI CUSTOMIZATION FRAMEWORK ---
                 with st.spinner(f"Gemini AI is intelligently customizing your manual for {client_name}..."):
-                    # Build active vectors string
                     active_vectors = []
                     if v_poultry: active_vectors.append("Raw Poultry Processing / Mass Deep-Frying")
                     if v_thermal: active_vectors.append("Extended Cold/Dairy Temp Control")
@@ -113,7 +111,6 @@ if st.session_state.logged_in:
                     
                     vectors_str = ", ".join(active_vectors) if active_vectors else "Standard Low-Risk Baseline Operations"
 
-                    # Construct the prompt to guide Gemini's generation
                     ai_prompt = f"""
                     You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
                     Your task is to take the baseline text of our manual and rewrite it into a highly tailored, custom manual for our new client.
@@ -145,15 +142,11 @@ if st.session_state.logged_in:
                 # --- PHASE C: RECONSTRUCT DOCUMENT AND PRESERVE FORMATTING ---
                 with st.spinner("Injecting AI text back into your styled layout..."):
                     try:
-                        # Open a fresh instance of your master file to inherit its margins, fonts, and headers
                         final_doc = Document(master_path)
                         
-                        # Clear out the old placeholder body text paragraphs safely
-                        # (This leaves the pre-loaded document styles and headers completely intact)
                         for p in final_doc.paragraphs:
                             p.text = ""
                         
-                        # Split AI response into individual paragraph rows
                         ai_paragraphs = ai_output_text.split("\n")
                         
                         for line in ai_paragraphs:
@@ -161,30 +154,24 @@ if st.session_state.logged_in:
                             if not cleaned_line:
                                 continue
                             
-                            # Detect if the line represents a core structured heading
-                            # (Checks if it starts with a number followed by a period, like "1. " or "5.1 ")
                             is_heading = False
                             first_word = cleaned_line.split(" ")[0]
                             if first_word and first_word[0].isdigit() and "." in first_word:
                                 is_heading = True
                             
-                            # Add the paragraph back using your template's built-in formatting styles
                             if is_heading:
                                 new_p = final_doc.add_paragraph(cleaned_line)
                                 new_p.style = final_doc.styles['Heading 1'] if "." not in first_word[first_word.find(".")+1:] else final_doc.styles['Heading 2']
-                                # Force bold styles onto heading parameters
                                 for run in new_p.runs:
                                     run.bold = True
                             else:
                                 new_p = final_doc.add_paragraph(cleaned_line)
                                 new_p.style = final_doc.styles['Normal']
 
-                        # Save the fully compiled, styled output file
                         output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
                         final_doc.save(output_filename)
                         st.success(f"🟢 Customized, styled manual compiled for {client_name}!")
                         
-                        # Expose the secure download portal
                         with open(output_filename, "rb") as file:
                             st.download_button(
                                 label=f"📥 Download Tailored FSMS Manual for {client_name} (.docx)",
