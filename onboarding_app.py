@@ -4,6 +4,7 @@ import json
 import os
 import google.generativeai as genai
 from docx import Document
+from docx.shared import Pt
 
 # --- SESSION STATE INITIALIZATION ---
 if 'logged_in' not in st.session_state:
@@ -13,10 +14,8 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# FIXED: Safely reads the lookup label parameter from your dashboard
+# Safely configures the API key from your environment dashboard
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-# FIXED: Directed to a live, production-active reasoning engine
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 # ==========================================
@@ -39,7 +38,7 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Generate smart, AI-tailored compliance manuals that preserve your professional document design layouts.")
+    st.markdown("Generate clean, AI-tailored compliance manuals with absolute style and formatting preservation.")
     st.divider()
     
     # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
@@ -60,7 +59,7 @@ if st.session_state.logged_in:
 
     st.divider()
     
-    # --- STEP 2: HAck-Proof RISK MATRIX ---
+    # --- STEP 2: RISK MATRIX ---
     st.header("🎛️ 2. Advanced Hazard & Operational Profiling")
     st.markdown("Toggle active hazard vectors to guide the Gemini compliance generation engine:")
     
@@ -113,23 +112,33 @@ if st.session_state.logged_in:
 
                     ai_prompt = f"""
                     You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
-                    Your task is to take the baseline text of our manual and rewrite it into a highly tailored, custom manual for our new client.
+                    Your task is to rewrite our master baseline text into an immaculate, professional compliance manual tailored exclusively for {client_name}.
 
-                    CLIENT PROFILE DATA:
+                    CLIENT ARCHITECTURE:
                     - Client Name: {client_name}
                     - Location/Branch: {client_location}
                     - Facility Type: {facility_type}
                     - Primary Regulation Scope: {regulatory_scope}
                     - High-Risk Operational Vectors: {vectors_str}
 
-                    CORE TEMPLATE MANUAL TEXT (Follow this exact tone and structure):
+                    CORE TEMPLATE MANUAL TEXT:
                     {core_text}
 
-                    CRITICAL GENERATION INSTRUCTIONS:
-                    1. Maintain the exact layout structure from the template (e.g., 1. Purpose, 2. Scope, 3. Definitions, 4. Responsibility, 5. Procedure, etc.).
-                    2. Intelligently integrate the client's name and location naturally throughout the clauses.
-                    3. Under the Procedures/Monitoring sections, add highly specific, expert standard operating procedures tailored directly to their active high-risk vectors (e.g., if they handle poultry, write specific rules regarding poultry cross-contamination, breading stations, and minimum internal cooking temperatures of 165°F).
-                    4. Output the finalized document content as clear text lines. Do not use markdown syntax or asterisks. If a line represents a heading (e.g., 1. Purpose), ensure it matches that format perfectly.
+                    CRITICAL GENERATION INSTRUCTIONS (EXPLICIT DESIGN RULES):
+                    1. Separate EVERY distinct Prerequisite Program (PRP) and Standard Operating Procedure (SOP) by printing the exact text token string "[PAGE_BREAK]" on its own separate line. Do not group multiple programs together continuous without this token.
+                    2. For each individual program, follow the strict 9-section framework layout:
+                       1. Purpose
+                       2. Scope
+                       3. Definitions
+                       4. Responsibility
+                       5. Procedure
+                       6. Monitoring
+                       7. Corrective Action
+                       8. Verification
+                       9. Records
+                    3. Intelligently embed the client's localized details ({client_name}, {client_location}) natively into the procedural text clauses.
+                    4. Integrate expert-level standard protocols for their active risk vectors (e.g., specific rules regarding poultry cross-contamination, breading stations, and internal cooking thresholds if raw poultry is checked).
+                    5. DO NOT use markdown characters, asterisks (**), or hashtags (##) for headings. Output plain, clean text lines.
                     """
 
                     try:
@@ -139,11 +148,12 @@ if st.session_state.logged_in:
                         st.error(f"Gemini AI Generation Failure: {e}")
                         st.stop()
 
-                # --- PHASE C: RECONSTRUCT DOCUMENT AND PRESERVE FORMATTING ---
-                with st.spinner("Injecting AI text back into your styled layout..."):
+                # --- PHASE C: RECONSTRUCT DOCUMENT AND FORCE LAYOUT ENGINE ---
+                with st.spinner("Executing run-level styling overrides (Times New Roman 9pt)..."):
                     try:
                         final_doc = Document(master_path)
                         
+                        # Wipe out old raw text data placeholders safely
                         for p in final_doc.paragraphs:
                             p.text = ""
                         
@@ -154,27 +164,42 @@ if st.session_state.logged_in:
                             if not cleaned_line:
                                 continue
                             
+                            # Catch the delimiter token and execute a clear document page break
+                            if cleaned_line == "[PAGE_BREAK]":
+                                final_doc.add_page_break()
+                                continue
+                            
+                            # Strip out any runaway markdown bold indicators left by the AI
+                            cleaned_line = cleaned_line.replace("**", "").replace("*", "")
+                            
+                            # Identify structural headers (e.g., "1. Purpose", "5.1 Uniforms")
                             is_heading = False
-                            first_word = cleaned_line.split(" ")[0]
+                            first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
                             if first_word and first_word[0].isdigit() and "." in first_word:
                                 is_heading = True
                             
+                            # Construct the paragraph elements and attach strict run styling parameters
+                            new_p = final_doc.add_paragraph()
+                            run = new_p.add_run(cleaned_line)
+                            
+                            # Explicitly force typography formatting onto the run layers
+                            run.font.name = 'Times New Roman'
+                            run.font.size = Pt(9)
+                            
                             if is_heading:
-                                new_p = final_doc.add_paragraph(cleaned_line)
-                                new_p.style = final_doc.styles['Heading 1'] if "." not in first_word[first_word.find(".")+1:] else final_doc.styles['Heading 2']
-                                for run in new_p.runs:
-                                    run.bold = True
+                                run.bold = True
+                                new_p.paragraph_format.space_before = Pt(12)
+                                new_p.paragraph_format.space_after = Pt(4)
                             else:
-                                new_p = final_doc.add_paragraph(cleaned_line)
-                                new_p.style = final_doc.styles['Normal']
+                                new_p.paragraph_format.space_after = Pt(3)
 
                         output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
                         final_doc.save(output_filename)
-                        st.success(f"🟢 Customized, styled manual compiled for {client_name}!")
+                        st.success(f"🟢 Tailored, formatted manual compiled for {client_name}!")
                         
                         with open(output_filename, "rb") as file:
                             st.download_button(
-                                label=f"📥 Download Tailored FSMS Manual for {client_name} (.docx)",
+                                label=f"📥 Download Structured FSMS Manual for {client_name} (.docx)",
                                 data=file,
                                 file_name=output_filename,
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
