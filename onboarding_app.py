@@ -5,6 +5,7 @@ import os
 import google.generativeai as genai
 from docx import Document
 from docx.shared import Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # --- SESSION STATE INITIALIZATION ---
 if 'logged_in' not in st.session_state:
@@ -14,7 +15,7 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# Configure the Gemini API Key from your vault safely
+# Securely boots your API Key parameters
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash')
 
@@ -126,7 +127,7 @@ if st.session_state.logged_in:
 
                     ABSOLUTE COMMAND LAYOUT INSTRUCTIONS:
                     1. Separate every distinct Prerequisite Program (PRP) and Standard Operating Procedure (SOP) by printing the single line text token "[PAGE_BREAK]".
-                    2. For each program, you must include the full numbered prefix for the core 9 headings exactly like this:
+                    2. For each program module, you must include the full numbered prefix for the core headings exactly like this:
                        1. Purpose
                        2. Scope
                        3. Definitions
@@ -150,13 +151,15 @@ if st.session_state.logged_in:
                         st.stop()
 
                 # --- PHASE C: RECONSTRUCT DOCUMENT WITH ABSOLUTE TYPOGRAPHY LAYOUT ENGINE ---
-                with st.spinner("Reconstructing layout and formatting (Times New Roman 9pt)..."):
+                with st.spinner("Reconstructing layout and forcing justification (Times New Roman 9pt)..."):
                     try:
                         final_doc = Document(master_path)
                         
-                        # Wipe placeholder body text blocks cleanly
-                        for p in final_doc.paragraphs:
-                            p.text = ""
+                        # FIXED: Permanently delete placeholder text blocks from the XML tree
+                        # This eliminates the 5 empty page gap completely while leaving margins and headers active
+                        while len(final_doc.paragraphs) > 0:
+                            p_to_del = final_doc.paragraphs[0]
+                            p_to_del._element.getparent().remove(p_to_del._element)
                         
                         ai_paragraphs = ai_output_text.split("\n")
                         
@@ -170,19 +173,26 @@ if st.session_state.logged_in:
                                 final_doc.add_page_break()
                                 continue
                             
-                            # Strip lingering markdown text formatting symbols
+                            # Clean out runaway markdown characters safely
                             cleaned_line = cleaned_line.replace("**", "").replace("*", "").replace("##", "").replace("#", "")
                             
-                            # Identify full-line heading clauses (e.g., starts with a number "1. Purpose" or "5.1 ")
-                            is_full_heading = False
+                            # Advanced Heading Detection (Matches digits or structural FSMS section labels)
+                            is_heading = False
                             first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
-                            if first_word and first_word[0].isdigit() and "." in first_word:
-                                is_full_heading = True
+                            
+                            # Matches "1. ", "5.1 ", "PRP-", or any primary section text values
+                            if (first_word and first_word[0].isdigit() and "." in first_word) or \
+                               cleaned_line.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")) or \
+                               cleaned_line in ["Purpose", "Scope", "Definitions", "Responsibility", "Procedure", "Monitoring", "Corrective Action", "Verification", "Records"] or \
+                               "PRP-" in cleaned_line or "SOP-" in cleaned_line:
+                                is_heading = True
                             
                             new_p = final_doc.add_paragraph()
+                            # FIXED: Forces text to be perfectly justified along both page margins
+                            new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                             
-                            if is_full_heading:
-                                # Section Headings - Entire sentence bolded
+                            if is_heading:
+                                # Full Structural Section Headings - Entire run bolded
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
@@ -194,13 +204,13 @@ if st.session_state.logged_in:
                                 # Inline Definition Layout (e.g., "Uniforms: All staff...")
                                 label_part, text_part = cleaned_line.split(":", 1)
                                 
-                                # Add and bold the keyword label run
+                                # Add and bold the prefix label keyword run
                                 label_run = new_p.add_run(label_part + ":")
                                 label_run.font.name = 'Times New Roman'
                                 label_run.font.size = Pt(9)
                                 label_run.bold = True
                                 
-                                # Add the rest of the descriptive sentence run as normal text
+                                # Add the descriptive tail run as normal unbolded text
                                 text_run = new_p.add_run(text_part)
                                 text_run.font.name = 'Times New Roman'
                                 text_run.font.size = Pt(9)
@@ -210,17 +220,17 @@ if st.session_state.logged_in:
                                 new_p.paragraph_format.space_after = Pt(3)
                                 
                             else:
-                                # Standard body text lines
+                                # Standard body sentences
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
                                 run.bold = False
                                 new_p.paragraph_format.space_before = Pt(0)
-                                new_p.paragraph_format.space_after = Pt(3)
+                                new_p.paragraph_format.space_after = Pt(3.5)
 
                         output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
                         final_doc.save(output_filename)
-                        st.success(f"🟢 Fully customized compliance manual compiled successfully for {client_name}!")
+                        st.success(f"🟢 Custom manual compiled for {client_name}!")
                         
                         with open(output_filename, "rb") as file:
                             st.download_button(
