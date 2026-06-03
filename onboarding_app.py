@@ -13,9 +13,10 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# Configure the Gemini API Key from your vault
-genai.configure(api_key=st.secrets["AIzaSyBi95Az__u9kNTHsZGWZ8iA3t3vc4KhCx8"])
-# Using the stable pro model for complex compliance analysis
+# FIXED: Points directly to the key name defined in your Streamlit secrets dashboard
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# Using the stable pro model via the updated naming convention to satisfy the gateway
 model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 # ==========================================
@@ -59,7 +60,7 @@ if st.session_state.logged_in:
 
     st.divider()
     
-    # --- STEP 2: HAck-Proof RISK MATRIX ---
+    # --- STEP 2: RISK MATRIX ---
     st.header("🎛️ 2. Advanced Hazard & Operational Profiling")
     st.markdown("Toggle active hazard vectors to guide the Gemini compliance generation engine:")
     
