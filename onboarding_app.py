@@ -18,11 +18,11 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
-# Safely paths your active key from your environment dashboard
+# Securely boots your API connection from your Streamlit vault
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# Helper function to append thin borders around our multi-document metadata grids
+# Helper function to inject clean, uniform tracking borders around corporate header tables
 def set_cell_border(cell, color="CCCCCC", sz="4", val="single"):
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = OxmlElement('w:tcBorders')
@@ -55,14 +55,13 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Compile smart, layout-perfect compliance manuals that preserve your professional consulting document layouts.")
+    st.markdown("Compile smart, complete compliance manuals matching your custom consulting design templates exactly.")
     st.divider()
     
     # --- STEP 1: ESTABLISHMENT BACKGROUND & CORE ARCHITECTURE ---
     st.header("🏢 1. Establishment Background & Core Architecture")
     col1, col2 = st.columns(2)
     with col1:
-        # FIXED: Placeholders removed completely for a clean text slot entry
         client_name = st.text_input("Brand Name / Legal Entity Name:", placeholder="")
         client_location = st.text_input("Operational Unit Address / Province:", placeholder="")
     with col2:
@@ -92,7 +91,7 @@ if st.session_state.logged_in:
         st.markdown("**Worktop & Prep Surface Fabrication:**")
         c_ss = st.checkbox("Food-Grade 304 Stainless Steel (Standard Corrosion Resistance)")
         c_stone = st.checkbox("Natural Stone / Marble & Granite (Porous, Temp-Retaining Dough Prep)")
-        c_wood = st.checkbox("Hardwood / Butcher Block Prep Counters (Highly Porous Artisian Surfaces)")
+        c_wood = st.checkbox("Hardwood / Butcher Block Prep Counters (Highly Porous Artisarial Surfaces)")
         
         st.markdown("---")
         st.markdown("**Cold-Chain Storage Shelving Units:**")
@@ -154,103 +153,99 @@ if st.session_state.logged_in:
                         st.error(f"Failed to read master layout text: {e}")
                         st.stop()
 
-                # --- PHASE B: LIVE AI CUSTOMIZATION FRAMEWORK ---
-                with st.spinner(f"Gemini AI is intelligently customizing your binder collection..."):
-                    # Map structural selections
-                    infra_list = []
-                    if c_ss: infra_list.append("Stainless Steel Counters")
-                    if c_stone: infra_list.append("Natural Stone Surfaces")
-                    if c_wood: infra_list.append("Hardwood Butcher Blocks")
-                    if s_epoxy: infra_list.append("Epoxy-Coated Storage Racks")
-                    if s_chrome: infra_list.append("Chrome Wire Shelving")
-                    if u_open: infra_list.append("Open-Air Kiosk Environment")
-                    if u_manual_water: infra_list.append("Manual Gravity Containerized Water Tank")
-                    if u_ice: infra_list.append("On-Site Commercial Ice Machines")
-                    if u_hoods: infra_list.append("Ventilation Hoods & ANSUL System")
-                    
-                    # Map drink parameters
-                    drink_list = []
-                    if d_coffee: drink_list.append("Espresso Coffee Operations")
-                    if d_tea: drink_list.append("Brewed Teas & Syrups")
-                    if d_milk: drink_list.append("Liquid Dairy Creamers")
-                    if d_nondairy: drink_list.append("Plant-Based Alternative Milks (Soy/Almond)")
-                    if d_frappe: drink_list.append("Frappes & Whipped Cream Siphons")
-                    if d_soda: drink_list.append("Soda Post-Mix & CO2 Gas Systems")
-                    
-                    # Map culinary parameters
-                    menu_list = []
-                    if f_app: menu_list.append("Appetizers (Fries/Nachos)")
-                    if f_rice: menu_list.append("Rice Bowls (Mass Cooked Grains)")
-                    if f_pasta: menu_list.append("Pre-boiled Pasta Handling")
-                    if f_pizza: menu_list.append("Pizza & Heavy Flour Dough Assembly")
-                    if f_pastry: menu_list.append("Pastries & Baked Confectionery")
-                    if f_icecream: menu_list.append("Soft Serve Ice Cream Machine Hoppers")
-                    if f_sandwich: menu_list.append("Sandwiches & Ready-To-Eat Cold Lines")
-                    if f_burger: menu_list.append("Burgers & High-Velocity Flat-Top Griddles")
-                    if f_salad: menu_list.append("Salads & Fresh Raw Produce Chlorination Wash")
-                    if f_poultry: menu_list.append("Raw Poultry (Chicken Processing)")
-                    if f_meat: menu_list.append("Pork/Beef Whole Muscle Cuts")
-                    if f_seafood: menu_list.append("Seafood & Marine Proteins")
+                # --- PHASE B: ASSEMBLE MODULAR COMPILATION QUEUE ---
+                # Foundational core targets generated for all food businesses
+                modules_to_generate = [
+                    "PRP-01: Personnel Hygiene, Dermal Wound Control, and Clinical Illness Reporting",
+                    "PRP-02: Facility Chemical Sanitation, Mechanical Warewashing, and Surface Efficacy Testing",
+                    "PRP-03: Integrated Pest Management, Structural Exclusion Barriers, and Vector Data Monitoring",
+                    "PRP-04: Environmental Waste Systems, Grease Interceptor Maintenance, and Wastewater Management",
+                    "SOP-01: Inbound Logistics Receiving, Cold-Chain Validation, and Rejected Shipment Protocols",
+                    "SOP-02: Inventory Cold Storage Systems, Cross-Contamination Hierarchies, and Allergen Segregation"
+                ]
 
-                    infra_str = ", ".join(infra_list) if infra_list else "Standard Sealed Structural Layout"
-                    drink_str = ", ".join(drink_list) if drink_list else "No Beverage Operations"
-                    menu_str = ", ".join(menu_list) if menu_list else "Standard Baseline Food Processing"
+                # Dynamically append specialized operational modules based on checkbox arrays
+                if u_ice: modules_to_generate.append("SOP-03: Commercial Ice Machine Mechanical Breakdown, Descaling, and Mold Decontamination")
+                if d_coffee or d_milk or d_frappe: modules_to_generate.append("SOP-04: High-Risk Liquid Dairy Handling, Steam Wand Sanitation, and Espresso Line Maintenance")
+                if d_nondairy: modules_to_generate.append("SOP-05: Plant-Based Milk Management and Cross-Contact Allergen Isolation")
+                if f_rice or f_pasta: modules_to_generate.append("SOP-06: Cooked Starch and Mass Grain Stabilization (Bacillus Cereus Spore Prevention)")
+                if f_pizza or f_pastry: modules_to_generate.append("SOP-07: Industrial Bakery Operations, Flour Dust Management, and Wheat Allergen Control")
+                if f_icecream: modules_to_generate.append("SOP-08: Soft Serve Ice Cream Production, Hopper Hygiene, and Daily Teardown Sanatization")
+                if f_sandwich: modules_to_generate.append("SOP-09: Ready-To-Eat Cold Line Assembly and Knife/Glove Manipulation Frequencies")
+                if f_burger: modules_to_generate.append("SOP-10: Flat-Top Griddle Operations, Ground Protein Thermal Tracking, and Carbon Residue Scraping")
+                if f_salad: modules_to_generate.append("SOP-11: Raw Produce Treatment, Chemical Antimicrobial Chlorination Wash, and Titration Controls")
+                if f_poultry: modules_to_generate.append("SOP-12: Raw Poultry De-boning, Breading Line Separation, and Salmonella Ingress Barriers")
+                if f_seafood: modules_to_generate.append("SOP-13: Chilled Marine Proteins, Histamine Accumulation Limits, and Parasite Destruction Tracking")
 
-                    ai_prompt = f"""
-                    You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
-                    Your task is to take the baseline rules of our manual and rewrite them into a customized collection of separate file documents for our client.
+                # --- PHASE C: RUN MODULAR ASSEMBLY MULTI-PROMPT LOOP ---
+                final_compiled_text_blocks = []
+                progress_bar = st.progress(0)
+                total_mods = len(modules_to_generate)
 
-                    CLIENT PROFILE DATA:
-                    - Client Name: {client_name}
-                    - Location/Branch: {client_location}
-                    - Facility Classification: {facility_type}
-                    - Primary Regulation Scope: {regulatory_scope}
-                    - Infrastructure Profile: {infra_str}
-                    - Beverage Capabilities: {drink_str}
-                    - Menu Category Grid: {menu_str}
+                for idx, target_module in enumerate(modules_to_generate):
+                    with st.spinner(f"Compiling detailed standalone manual file: {target_module}..."):
+                        
+                        loop_prompt = f"""
+                        You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
+                        Your task is to write a highly detailed, uncompressed compliance manual section for {target_module} tailored specifically for our client.
 
-                    CORE TEMPLATE MANUAL TEXT:
-                    {core_text}
+                        CLIENT DATA:
+                        - Client Name: {client_name}
+                        - Location: {client_location}
+                        - Classification: {facility_type}
+                        - Oversight Framework: {regulatory_scope}
+                        - Checked Setup Conditions: Surface Material options matching ({c_ss=}, {c_stone=}, {c_wood=}), Water system ({u_manual_water=}), Open kiosk layout ({u_open=}).
 
-                    ABSOLUTE COMPLIANCE ENGINEERING DIRECTIONS:
-                    1. Separate every single distinct PRP and SOP program block by printing the exact text token string "[PAGE_BREAK]" on its own separate line.
-                    2. Right after a "[PAGE_BREAK]" token, print the formal document tracking title on its own line before starting the headers (e.g., "PRP-01: PERSONNEL HYGIENE AND HEALTH POLICY").
-                    3. Do not generate markdown tables, summary tables, or lists at the beginning of the response. Weave all specific metrics (like PPM levels or cooking temperatures) directly into the text procedures of the corresponding SOP/PRP paragraphs.
-                    4. For each document module, output the 9 core structural headings with their numbers:
-                       1. Purpose
-                       2. Scope
-                       3. Definitions
-                       4. Responsibility
-                       5. Procedure
-                       6. Monitoring
-                       7. Corrective Action
-                       8. Verification
-                       9. Records
-                    5. Format subheadings inside section 5 with subnumbers (e.g., '5.1 Uniform Standards', '5.2 Handwashing Protocol').
-                    6. For specific operational parameters under procedures, use a plain keyword label prefix followed by a colon (e.g., 'Uniforms: All staff must...', 'Method: Staff must scrub...').
-                    7. Do not include markdown asterisks (**), hashtags (##), or source bracket citations like [source: X]. Output clean, text lines.
-                    """
+                        STYLE BENCHMARK TEXT CONTEXT:
+                        {core_text[:3000]}
 
-                    try:
-                        response = model.generate_content(ai_prompt)
-                        ai_output_text = response.text
-                    except Exception as e:
-                        st.error(f"Gemini AI Generation Failure: {e}")
-                        st.stop()
+                        ABSOLUTE FORMATTING COMMANDS:
+                        1. Generate content ONLY for the single module specified: {target_module}. Do not summarize or touch other areas.
+                        2. Write a comprehensive manual section from scratch. You must include the full numbered prefix for all 9 core structural headings exactly as follows:
+                           1. Purpose
+                           2. Scope
+                           3. Definitions
+                           4. Responsibility
+                           5. Procedure
+                           6. Monitoring
+                           7. Corrective Action
+                           8. Verification
+                           9. Records
+                        3. Format subheadings inside section 5 with clear subnumbers (e.g., '5.1 Specific Execution Rules', '5.2 Frequency Parameters').
+                        4. For specific operational item text lines under procedures, use a plain keyword label prefix followed by a colon (e.g., 'Uniforms: All staff must...', 'Method: Staff must scrub...').
+                        5. Incorporate precise, actionable operational parameters tailored to this client's profile. (For example, if handling burgers or griddles, specify thermal cooking parameters of 155°F/68°C; if handling chicken, specify 165°F/74°C; if manual chemical sanitization is tracked, note Quat titration requirements of 200–400 ppm or Chlorine ranges of 50–100 ppm).
+                        6. DO NOT use markdown characters, asterisks (**), or hashtags (##). 
+                        7. DO NOT append any source brackets, bibliographies, footnotes, or numbers like .
+                        """
 
-                # --- PHASE C: RECONSTRUCT DOCUMENT WITH RUN-LEVEL STYLING & SPACING ---
-                with st.spinner("Executing run-level styling overrides (Times New Roman 9pt)..."):
+                        try:
+                            response = model.generate_content(loop_prompt)
+                            module_text = response.text.strip()
+                            
+                            # Add delimiters to guide the Word formatting engine layout stitcher
+                            final_compiled_text_blocks.append("[PAGE_BREAK]")
+                            final_compiled_text_blocks.append(target_module)
+                            final_compiled_text_blocks.append(module_text)
+                        except Exception as e:
+                            st.error(f"Engine Loop Error on {target_module}: {e}")
+                            st.stop()
+                        
+                        progress_bar.progress((idx + 1) / total_mods)
+
+                # --- PHASE D: RECONSTRUCT DOCX LAYER & APPLY OVERRIDES ---
+                with st.spinner("Executing run-level layout overrides and margin justification (Times New Roman 9pt)..."):
                     try:
                         final_doc = Document(master_path)
                         
-                        # Completely wipe old text containers out of the file layout structure
+                        # Wipe out old placeholder text blocks safely from the XML DOM tree
                         while len(final_doc.paragraphs) > 0:
                             p_to_del = final_doc.paragraphs[0]
                             p_to_del._element.getparent().remove(p_to_del._element)
                         
-                        ai_paragraphs = ai_output_text.split("\n")
+                        # Flatten the text array array list blocks into simple paragraph strings
+                        flat_raw_lines = "\n".join(final_compiled_text_blocks).split("\n")
                         
-                        # Generates the thin-bordered tracking box header at the top of each standalone document page
+                        # Injects the thin-bordered standalone metadata card header block at the top of each page
                         def inject_corporate_header(doc_obj, title_text):
                             tbl = doc_obj.add_table(rows=2, cols=2)
                             tbl.autofit = False
@@ -268,7 +263,7 @@ if st.session_state.logged_in:
                             cell_01 = tbl.cell(0, 1)
                             p_01 = cell_01.paragraphs[0]
                             p_01.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                            r_01 = p_01.add_run("Doc Ref: FSMS-PRP-SOP-2026")
+                            r_01 = p_01.add_run("Doc Ref: FSMS-COLLECTION-2026")
                             r_01.font.name = 'Times New Roman'
                             r_01.font.size = Pt(8)
                             r_01.font.color.rgb = RGBColor(100, 100, 100)
@@ -297,38 +292,43 @@ if st.session_state.logged_in:
                             spacer = doc_obj.add_paragraph()
                             spacer.paragraph_format.space_after = Pt(12)
 
-                        # Set page 1 tracker trigger
-                        is_next_line_title = True
+                        is_next_line_title = False
+                        is_first_page = True
                         
-                        for line in ai_paragraphs:
+                        for line in flat_raw_lines:
                             cleaned_line = line.strip()
                             if not cleaned_line:
                                 continue
                             
+                            # Intercept page split signals
                             if cleaned_line == "[PAGE_BREAK]":
-                                final_doc.add_page_break()
+                                if not is_first_page:
+                                    final_doc.add_page_break()
+                                is_first_page = False
                                 is_next_line_title = True
                                 continue
                             
+                            # Anchor tracking header card definitions
                             if is_next_line_title:
                                 inject_corporate_header(final_doc, cleaned_line)
                                 is_next_line_title = False
                                 continue
                             
-                            # Advanced structural title matching logic
+                            # INTERCEPTOR: Strips away any stray markdown formatting characters entirely
+                            cleaned_line = cleaned_line.replace("***", "").replace("**", "").replace("*", "").replace("##", "").replace("#", "")
+                            
+                            # Identify section titles and subheaders (e.g., "1. Purpose" or "5.1 ")
                             is_heading = False
                             first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
                             if (first_word and first_word[0].isdigit() and "." in first_word) or \
                                cleaned_line.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")) or \
-                               cleaned_line in ["Purpose", "Scope", "Definitions", "Responsibility", "Procedure", "Monitoring", "Corrective Action", "Verification", "Records"] or \
-                               cleaned_line.startswith(("PRP-", "SOP-")):
+                               cleaned_line in ["Purpose", "Scope", "Definitions", "Responsibility", "Procedure", "Monitoring", "Corrective Action", "Verification", "Records"]:
                                 is_heading = True
                             
                             new_p = final_doc.add_paragraph()
                             new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                             
                             if is_heading:
-                                # Primary Section Headings - Full run bolded
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
@@ -337,7 +337,7 @@ if st.session_state.logged_in:
                                 new_p.paragraph_format.space_after = Pt(4)
                             
                             elif ":" in cleaned_line and not cleaned_line.startswith("http"):
-                                # Inline Definition Spacing Fix (e.g., "Uniforms: All staff...")
+                                # Inline Parameter Layout Engine (e.g., "Uniforms: All staff...")
                                 label_part, text_part = cleaned_line.split(":", 1)
                                 
                                 label_run = new_p.add_run(label_part + ":")
@@ -350,12 +350,12 @@ if st.session_state.logged_in:
                                 text_run.font.size = Pt(9)
                                 text_run.bold = False
                                 
-                                # FIXED: Applies breathing space before the item so it never feels compressed
+                                # Adds clean breathing gaps before inline fields so they never run together compressed
                                 new_p.paragraph_format.space_before = Pt(8)
                                 new_p.paragraph_format.space_after = Pt(3)
                                 
                             else:
-                                # Standard body blocks
+                                # Standard procedural sentences
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
@@ -363,13 +363,14 @@ if st.session_state.logged_in:
                                 new_p.paragraph_format.space_before = Pt(0)
                                 new_p.paragraph_format.space_after = Pt(4)
 
+                        # Save output and expose secure download button portal
                         output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
                         final_doc.save(output_filename)
-                        st.success(f"🟢 Collection compiled cleanly for {client_name}!")
+                        st.success(f"🟢 Full-scope customized FSMS manual compiled for {client_name}!")
                         
                         with open(output_filename, "rb") as file:
                             st.download_button(
-                                label=f"📥 Download Collection FSMS Binder for {client_name} (.docx)",
+                                label=f"📥 Download Standalone Collection FSMS Manual for {client_name} (.docx)",
                                 data=file,
                                 file_name=output_filename,
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -378,4 +379,4 @@ if st.session_state.logged_in:
                         os.remove(output_filename)
                         
                     except Exception as e:
-                        st.error(f"Style Preservation Mapping Failure: {e}")
+                        st.error(f"Layout Assembly Processing Failure: {e}")
