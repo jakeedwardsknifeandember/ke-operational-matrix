@@ -18,10 +18,11 @@ if 'logged_in' not in st.session_state:
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
 
+# Safely paths your active key from your environment dashboard
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# Helper function to add uniform thin borders to our multi-document headers
+# Helper function to append thin borders around our multi-document metadata grids
 def set_cell_border(cell, color="CCCCCC", sz="4", val="single"):
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = OxmlElement('w:tcBorders')
@@ -54,46 +55,86 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Generate smart, clean compliance manuals matching your custom consulting design templates exactly.")
+    st.markdown("Compile smart, layout-perfect compliance manuals that preserve your professional consulting document layouts.")
     st.divider()
     
-    # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
-    st.header("🏢 1. Establishment Architecture")
+    # --- STEP 1: ESTABLISHMENT BACKGROUND & CORE ARCHITECTURE ---
+    st.header("🏢 1. Establishment Background & Core Architecture")
     col1, col2 = st.columns(2)
     with col1:
-        client_name = st.text_input("Brand Name / Legal Entity Name:", placeholder="e.g., Lava Craze Group")
-        client_location = st.text_input("Operational Unit Address / Province:", placeholder="e.g., Pampanga Cluster")
+        # FIXED: Placeholders removed completely for a clean text slot entry
+        client_name = st.text_input("Brand Name / Legal Entity Name:", placeholder="")
+        client_location = st.text_input("Operational Unit Address / Province:", placeholder="")
     with col2:
         facility_type = st.selectbox(
             "Facility Operational Classification:",
-            ["Central Commissary Kitchen", "Commercial Cloud Kitchen Network", "Full-Service Dine-In Restaurant", "High-Volume Logistics / Distribution Hub"]
+            [
+                "Central Commissary Kitchen", 
+                "Full-Service Dine-In Restaurant", 
+                "Cafe / Specialty Coffee Shop (Light Cooking)", 
+                "Micro-Kiosk / Street-Side Retail Stand", 
+                "Pastry Shop & Bakery (No Raw Protein Prep)"
+            ]
         )
         regulatory_scope = st.selectbox(
             "Primary Regulatory Oversight Framework:",
-            ["FDA GHP/HACCP Mandatory Scope", "NMIS Meat Inspection Enforcement", "Local Government LGU Sanitation Code"]
+            [
+                "Local Government LGU Sanitation Code (Standard Retail)", 
+                "FDA GHP/HACCP Mandatory Scope (Manufacturing/Commissaries)", 
+                "NMIS Meat Inspection Enforcement (Primary Meat Processing)"
+            ]
         )
 
-    st.divider()
+    # --- STEP 2: INFRASTRUCTURE & STRUCTURAL UTILITIES ---
+    st.header("🏗️ 2. Infrastructure & Structural Utilities")
     
-    # --- STEP 2: RISK MATRIX ---
-    st.header("🎛️ 2. Advanced Hazard & Operational Profiling")
-    st.markdown("Toggle active hazard vectors to guide the Gemini compliance generation engine:")
-    
-    with st.expander("🛡️ Biological, Thermal & Cross-Contamination Vectors", expanded=True):
-        v_poultry = st.checkbox("Processing Raw Poultry / Mass Deep-Frying Operations (Salmonella/Campylobacter Control)")
-        v_thermal = st.checkbox("Extended Temperature-Controlled Holding / Dairy & Cream Systems (Listeria Monitoring)")
-        v_rte = st.checkbox("High-Risk Ready-to-Eat (RTE) Seafood / Raw Protein Assemblies (Vibrio/Parasite Protocols)")
-        v_vacuum = st.checkbox("Reduced Oxygen Packaging (ROP) / Sous-Vide Processing (Clostridium botulinum Control)")
+    with st.expander("🛠️ Countertop Fabrication & Cold-Chain Shelving Materials", expanded=True):
+        st.markdown("**Worktop & Prep Surface Fabrication:**")
+        c_ss = st.checkbox("Food-Grade 304 Stainless Steel (Standard Corrosion Resistance)")
+        c_stone = st.checkbox("Natural Stone / Marble & Granite (Porous, Temp-Retaining Dough Prep)")
+        c_wood = st.checkbox("Hardwood / Butcher Block Prep Counters (Highly Porous Artisian Surfaces)")
+        
+        st.markdown("---")
+        st.markdown("**Cold-Chain Storage Shelving Units:**")
+        s_epoxy = st.checkbox("Epoxy-Coated / Plastic Composite Shelving (High-Moisture Coolers)")
+        s_chrome = st.checkbox("Chrome-Plated Wire Shelving (Dry Storage Only)")
 
-    with st.expander("𚚰 Utility, Waste & Infrastructure Engineering", expanded=False):
-        v_well = st.checkbox("Utilizes Independent Ground Well-Water / On-site Water Filtration Matrix")
-        v_trap = st.checkbox("Commercial Sub-surface Grease Traps with High-Frequency Waste Output")
-        v_cold = st.checkbox("Operates Owned Active Cold-Chain Fleet / Logistics Cross-Docking")
+    with st.expander("🚰 Environmental & Water Engineering Toggles", expanded=False):
+        u_open = st.checkbox("Open-Air / Street-Facing Kiosk Facility Environment (Exposed Vector Risks)")
+        u_manual_water = st.checkbox("Containerized / Manual Gravity Water Supply (No Connected Mains Plumbing)")
+        u_ice = st.checkbox("On-Site Commercial Ice Production Equipment (High Slime/Mold Biofilm Risks)")
+        u_hoods = st.checkbox("Commercial Ventilation Hoods & Active ANSUL Fire Suppression Arrays")
+
+    # --- STEP 3: DRINK CAPABILITIES & BEVERAGE MATRIX ---
+    st.header("🥤 3. Beverage Capabilities Matrix")
+    with st.expander("☕ Specialty Beverage Program Toggles", expanded=False):
+        d_coffee = st.checkbox("Coffee Based Operations (Espresso Lines / Steam-Wand Management)")
+        d_tea = st.checkbox("Tea Based Programs (Bulk Brewed Batching / Infused Syrups)")
+        d_milk = st.checkbox("Milk Based / Fresh Liquid Dairy Creamers (High-Risk Temperature Loops)")
+        d_nondairy = st.checkbox("Non-Dairy Alternative Milks (Almond, Soy, Oat Allergen Segregation)")
+        d_frappe = st.checkbox("Frappes / Milkshakes served with Whipping Cream Siphon Canisters")
+        d_soda = st.checkbox("Soda Based Operations (Pressurized CO2 Gas Lines / Post-Mix Systems)")
+
+    # --- STEP 4: CULINARY MENU CATEGORIES MATRIX ---
+    st.header("🍕 4. Culinary Menu Categories Matrix")
+    with st.expander("🍔 Active Food Menu Item Classifications", expanded=True):
+        f_app = st.checkbox("Appetizers & Finger Foods (Nachos, Fries, Quesadillas)")
+        f_rice = st.checkbox("Rice Bowls / Mass Grains Batching (Bacillus Cereus Mitigation Scope)")
+        f_pasta = st.checkbox("Pre-boiled Pasta Handling & Starch Lines")
+        f_pizza = st.checkbox("Pizza Production (High Flour Dust Allergen & Deck Oven Risks)")
+        f_pastry = st.checkbox("Pastries & Pre-Baked Confectionery Goods")
+        f_icecream = st.checkbox("Soft Serve Ice Cream Operations (High-Risk Liquid Hopper Wash Loops)")
+        f_sandwich = st.checkbox("Sandwiches & Cold Ready-To-Eat (RTE) Manual Assemblies")
+        f_burger = st.checkbox("Burgers & Flat-Top Griddle Operations (High-Velocity Ground Proteins)")
+        f_salad = st.checkbox("Salads & Fresh Raw Produce Washes (Surface Pathogen Controls)")
+        f_poultry = st.checkbox("Chicken Processing (Raw Poultry Cross-Contamination Boundaries)")
+        f_meat = st.checkbox("Pork or Beef Whole Muscle Cuts")
+        f_seafood = st.checkbox("Seafood & Raw/Chilled Marine Proteins")
 
     st.divider()
 
-    # --- STEP 3: AUTOMATION EXECUTION ---
-    st.header("🚀 3. Execute AI Document Generation")
+    # --- STEP 5: AUTOMATION EXECUTION ---
+    st.header("🚀 5. Execute AI Document Generation")
     if st.button("🔥 Run AI Compilation Engine", use_container_width=True):
         if not client_name.strip() or not client_location.strip():
             st.error("Compilation Halted: Brand Name and Address parameters cannot be empty.")
@@ -115,35 +156,66 @@ if st.session_state.logged_in:
 
                 # --- PHASE B: LIVE AI CUSTOMIZATION FRAMEWORK ---
                 with st.spinner(f"Gemini AI is intelligently customizing your binder collection..."):
-                    active_vectors = []
-                    if v_poultry: active_vectors.append("Raw Poultry Processing / Mass Deep-Frying")
-                    if v_thermal: active_vectors.append("Extended Cold/Dairy Temp Control")
-                    if v_rte: active_vectors.append("Ready-to-Eat Seafood Assembly")
-                    if v_vacuum: active_vectors.append("Sous-Vide / Reduced Oxygen Packaging")
-                    if v_well: active_vectors.append("Independent Ground Well-Water Extraction")
-                    if v_trap: active_vectors.append("Commercial Grease Interceptors")
-                    if v_cold: active_vectors.append("Owned Cold-Chain Logistics Fleet")
+                    # Map structural selections
+                    infra_list = []
+                    if c_ss: infra_list.append("Stainless Steel Counters")
+                    if c_stone: infra_list.append("Natural Stone Surfaces")
+                    if c_wood: infra_list.append("Hardwood Butcher Blocks")
+                    if s_epoxy: infra_list.append("Epoxy-Coated Storage Racks")
+                    if s_chrome: infra_list.append("Chrome Wire Shelving")
+                    if u_open: infra_list.append("Open-Air Kiosk Environment")
+                    if u_manual_water: infra_list.append("Manual Gravity Containerized Water Tank")
+                    if u_ice: infra_list.append("On-Site Commercial Ice Machines")
+                    if u_hoods: infra_list.append("Ventilation Hoods & ANSUL System")
                     
-                    vectors_str = ", ".join(active_vectors) if active_vectors else "Standard Low-Risk Baseline Operations"
+                    # Map drink parameters
+                    drink_list = []
+                    if d_coffee: drink_list.append("Espresso Coffee Operations")
+                    if d_tea: drink_list.append("Brewed Teas & Syrups")
+                    if d_milk: drink_list.append("Liquid Dairy Creamers")
+                    if d_nondairy: drink_list.append("Plant-Based Alternative Milks (Soy/Almond)")
+                    if d_frappe: drink_list.append("Frappes & Whipped Cream Siphons")
+                    if d_soda: drink_list.append("Soda Post-Mix & CO2 Gas Systems")
+                    
+                    # Map culinary parameters
+                    menu_list = []
+                    if f_app: menu_list.append("Appetizers (Fries/Nachos)")
+                    if f_rice: menu_list.append("Rice Bowls (Mass Cooked Grains)")
+                    if f_pasta: menu_list.append("Pre-boiled Pasta Handling")
+                    if f_pizza: menu_list.append("Pizza & Heavy Flour Dough Assembly")
+                    if f_pastry: menu_list.append("Pastries & Baked Confectionery")
+                    if f_icecream: menu_list.append("Soft Serve Ice Cream Machine Hoppers")
+                    if f_sandwich: menu_list.append("Sandwiches & Ready-To-Eat Cold Lines")
+                    if f_burger: menu_list.append("Burgers & High-Velocity Flat-Top Griddles")
+                    if f_salad: menu_list.append("Salads & Fresh Raw Produce Chlorination Wash")
+                    if f_poultry: menu_list.append("Raw Poultry (Chicken Processing)")
+                    if f_meat: menu_list.append("Pork/Beef Whole Muscle Cuts")
+                    if f_seafood: menu_list.append("Seafood & Marine Proteins")
+
+                    infra_str = ", ".join(infra_list) if infra_list else "Standard Sealed Structural Layout"
+                    drink_str = ", ".join(drink_list) if drink_list else "No Beverage Operations"
+                    menu_str = ", ".join(menu_list) if menu_list else "Standard Baseline Food Processing"
 
                     ai_prompt = f"""
                     You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
-                    Your task is to rewrite our master baseline text into a collection of different standalone file documents for {client_name}.
+                    Your task is to take the baseline rules of our manual and rewrite them into a customized collection of separate file documents for our client.
 
-                    CLIENT DATA:
+                    CLIENT PROFILE DATA:
                     - Client Name: {client_name}
                     - Location/Branch: {client_location}
-                    - Facility Type: {facility_type}
+                    - Facility Classification: {facility_type}
                     - Primary Regulation Scope: {regulatory_scope}
-                    - High-Risk Operational Vectors: {vectors_str}
+                    - Infrastructure Profile: {infra_str}
+                    - Beverage Capabilities: {drink_str}
+                    - Menu Category Grid: {menu_str}
 
-                    CORE TEMPLATE MANUAL TEXT STRUCTURE:
+                    CORE TEMPLATE MANUAL TEXT:
                     {core_text}
 
-                    ABSOLUTE FILE ARCHITECTURE COMMANDS:
-                    1. Do not print any summary lists or tables at the beginning of the text. Start immediately with the first document module.
-                    2. Separate every single distinct PRP and SOP module by printing the exact text token string "[PAGE_BREAK]" on its own line.
-                    3. Right after a "[PAGE_BREAK]" token, you must declare the formal Document Header Meta Name on its own separate line before printing the clauses (e.g., "PRP-01: PERSONNEL HYGIENE AND HEALTH POLICY" or "SOP-01: INBOUND RECEIVING PROTOCOLS").
+                    ABSOLUTE COMPLIANCE ENGINEERING DIRECTIONS:
+                    1. Separate every single distinct PRP and SOP program block by printing the exact text token string "[PAGE_BREAK]" on its own separate line.
+                    2. Right after a "[PAGE_BREAK]" token, print the formal document tracking title on its own line before starting the headers (e.g., "PRP-01: PERSONNEL HYGIENE AND HEALTH POLICY").
+                    3. Do not generate markdown tables, summary tables, or lists at the beginning of the response. Weave all specific metrics (like PPM levels or cooking temperatures) directly into the text procedures of the corresponding SOP/PRP paragraphs.
                     4. For each document module, output the 9 core structural headings with their numbers:
                        1. Purpose
                        2. Scope
@@ -155,8 +227,8 @@ if st.session_state.logged_in:
                        8. Verification
                        9. Records
                     5. Format subheadings inside section 5 with subnumbers (e.g., '5.1 Uniform Standards', '5.2 Handwashing Protocol').
-                    6. For specific operational items under procedures, output them using a plain keyword prefix label followed by a colon (e.g., 'Uniforms: All staff must...', 'Method: Staff must scrub...').
-                    7. Do not use markdown syntax, asterisks (**), or tables. Do not copy source bracket citations like .
+                    6. For specific operational parameters under procedures, use a plain keyword label prefix followed by a colon (e.g., 'Uniforms: All staff must...', 'Method: Staff must scrub...').
+                    7. Do not include markdown asterisks (**), hashtags (##), or source bracket citations like [source: X]. Output clean, text lines.
                     """
 
                     try:
@@ -167,25 +239,24 @@ if st.session_state.logged_in:
                         st.stop()
 
                 # --- PHASE C: RECONSTRUCT DOCUMENT WITH RUN-LEVEL STYLING & SPACING ---
-                with st.spinner("Reconstructing file layout structure (Times New Roman 9pt)..."):
+                with st.spinner("Executing run-level styling overrides (Times New Roman 9pt)..."):
                     try:
                         final_doc = Document(master_path)
                         
-                        # Completely wipe old text blocks to prevent empty top page gaps
+                        # Completely wipe old text containers out of the file layout structure
                         while len(final_doc.paragraphs) > 0:
                             p_to_del = final_doc.paragraphs[0]
                             p_to_del._element.getparent().remove(p_to_del._element)
                         
                         ai_paragraphs = ai_output_text.split("\n")
                         
-                        # Helper function to generate the clean file-collection header table block
+                        # Generates the thin-bordered tracking box header at the top of each standalone document page
                         def inject_corporate_header(doc_obj, title_text):
                             tbl = doc_obj.add_table(rows=2, cols=2)
                             tbl.autofit = False
                             tbl.columns[0].width = Inches(4.5)
                             tbl.columns[1].width = Inches(2.0)
                             
-                            # Row 0, Cell 0: Corporate Brand Name Identification
                             cell_00 = tbl.cell(0, 0)
                             p_00 = cell_00.paragraphs[0]
                             p_00.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -194,7 +265,6 @@ if st.session_state.logged_in:
                             r_00.font.size = Pt(8)
                             r_00.font.color.rgb = RGBColor(100, 100, 100)
                             
-                            # Row 0, Cell 1: Compliance File Reference Tracking
                             cell_01 = tbl.cell(0, 1)
                             p_01 = cell_01.paragraphs[0]
                             p_01.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -203,7 +273,6 @@ if st.session_state.logged_in:
                             r_01.font.size = Pt(8)
                             r_01.font.color.rgb = RGBColor(100, 100, 100)
                             
-                            # Row 1, Cell 0: Distinct Document Module Title
                             cell_10 = tbl.cell(1, 0)
                             p_10 = cell_10.paragraphs[0]
                             p_10.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -212,7 +281,6 @@ if st.session_state.logged_in:
                             r_10.font.size = Pt(10)
                             r_10.bold = True
                             
-                            # Row 1, Cell 1: Regulatory Standard Reference
                             cell_11 = tbl.cell(1, 1)
                             p_11 = cell_11.paragraphs[0]
                             p_11.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -222,16 +290,14 @@ if st.session_state.logged_in:
                             r_11.font.italic = True
                             r_11.font.color.rgb = RGBColor(100, 100, 100)
                             
-                            # Format borders for every cell in the template header grid
                             for row in tbl.rows:
                                 for cell in row.cells:
                                     set_cell_border(cell)
                             
-                            # Add an anchor spacer paragraph below the table grid to separate it from content
                             spacer = doc_obj.add_paragraph()
                             spacer.paragraph_format.space_after = Pt(12)
 
-                        # Boot the very first header tracker table on page 1
+                        # Set page 1 tracker trigger
                         is_next_line_title = True
                         
                         for line in ai_paragraphs:
@@ -239,19 +305,17 @@ if st.session_state.logged_in:
                             if not cleaned_line:
                                 continue
                             
-                            # Process explicit page break boundaries
                             if cleaned_line == "[PAGE_BREAK]":
                                 final_doc.add_page_break()
                                 is_next_line_title = True
                                 continue
                             
-                            # Handle module title lines immediately following page breaks
                             if is_next_line_title:
                                 inject_corporate_header(final_doc, cleaned_line)
                                 is_next_line_title = False
                                 continue
                             
-                            # Detect structure heading rows
+                            # Advanced structural title matching logic
                             is_heading = False
                             first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
                             if (first_word and first_word[0].isdigit() and "." in first_word) or \
@@ -264,16 +328,16 @@ if st.session_state.logged_in:
                             new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                             
                             if is_heading:
-                                # Primary Structure Section Headings - Full line bolded
+                                # Primary Section Headings - Full run bolded
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
                                 run.bold = True
-                                new_p.paragraph_format.space_before = Pt(14) # Clean separation gap before headings
+                                new_p.paragraph_format.space_before = Pt(14)
                                 new_p.paragraph_format.space_after = Pt(4)
                             
                             elif ":" in cleaned_line and not cleaned_line.startswith("http"):
-                                # Inline Field Definitions (e.g., "Uniforms: All staff...")
+                                # Inline Definition Spacing Fix (e.g., "Uniforms: All staff...")
                                 label_part, text_part = cleaned_line.split(":", 1)
                                 
                                 label_run = new_p.add_run(label_part + ":")
@@ -286,12 +350,12 @@ if st.session_state.logged_in:
                                 text_run.font.size = Pt(9)
                                 text_run.bold = False
                                 
-                                # FIXED: Force a clean padding gap before this item so it never runs together compressed
+                                # FIXED: Applies breathing space before the item so it never feels compressed
                                 new_p.paragraph_format.space_before = Pt(8)
                                 new_p.paragraph_format.space_after = Pt(3)
                                 
                             else:
-                                # Standard body sentences
+                                # Standard body blocks
                                 run = new_p.add_run(cleaned_line)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
