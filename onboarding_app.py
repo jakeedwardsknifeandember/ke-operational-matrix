@@ -3,8 +3,9 @@ import gspread
 import json
 import os
 import google.generativeai as genai
+import docx
 from docx import Document
-from docx.shared import Pt, Inches
+from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -20,7 +21,7 @@ gc = gspread.service_account_from_dict(credentials)
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# Helper function to add a clean, uniform cell border to the corporate header tables
+# Helper function to add uniform thin borders to our multi-document headers
 def set_cell_border(cell, color="CCCCCC", sz="4", val="single"):
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = OxmlElement('w:tcBorders')
@@ -53,7 +54,7 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Generate clean, AI-tailored compliance manuals with standalone corporate headers and perfect document spacing.")
+    st.markdown("Generate smart, clean compliance manuals matching your custom consulting design templates exactly.")
     st.divider()
     
     # --- STEP 1: ESTABLISHMENT ARCHITECTURE ---
@@ -84,7 +85,7 @@ if st.session_state.logged_in:
         v_rte = st.checkbox("High-Risk Ready-to-Eat (RTE) Seafood / Raw Protein Assemblies (Vibrio/Parasite Protocols)")
         v_vacuum = st.checkbox("Reduced Oxygen Packaging (ROP) / Sous-Vide Processing (Clostridium botulinum Control)")
 
-    with st.expander("🚰 Utility, Waste & Infrastructure Engineering", expanded=False):
+    with st.expander("𚚰 Utility, Waste & Infrastructure Engineering", expanded=False):
         v_well = st.checkbox("Utilizes Independent Ground Well-Water / On-site Water Filtration Matrix")
         v_trap = st.checkbox("Commercial Sub-surface Grease Traps with High-Frequency Waste Output")
         v_cold = st.checkbox("Operates Owned Active Cold-Chain Fleet / Logistics Cross-Docking")
@@ -191,7 +192,7 @@ if st.session_state.logged_in:
                             r_00 = p_00.add_run(f"🏢 FOOD SAFETY MANAGEMENT SYSTEM | {client_name.upper()}")
                             r_00.font.name = 'Times New Roman'
                             r_00.font.size = Pt(8)
-                            r_00.font.color.rgb = docx.shared.RGBColor(100, 100, 100)
+                            r_00.font.color.rgb = RGBColor(100, 100, 100)
                             
                             # Row 0, Cell 1: Compliance File Reference Tracking
                             cell_01 = tbl.cell(0, 1)
@@ -200,6 +201,7 @@ if st.session_state.logged_in:
                             r_01 = p_01.add_run("Doc Ref: FSMS-PRP-SOP-2026")
                             r_01.font.name = 'Times New Roman'
                             r_01.font.size = Pt(8)
+                            r_01.font.color.rgb = RGBColor(100, 100, 100)
                             
                             # Row 1, Cell 0: Distinct Document Module Title
                             cell_10 = tbl.cell(1, 0)
@@ -218,6 +220,7 @@ if st.session_state.logged_in:
                             r_11.font.name = 'Times New Roman'
                             r_11.font.size = Pt(8)
                             r_11.font.italic = True
+                            r_11.font.color.rgb = RGBColor(100, 100, 100)
                             
                             # Format borders for every cell in the template header grid
                             for row in tbl.rows:
@@ -266,11 +269,11 @@ if st.session_state.logged_in:
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(9)
                                 run.bold = True
-                                new_p.paragraph_format.space_before = Pt(12) # Gap before the section heading
+                                new_p.paragraph_format.space_before = Pt(14) # Clean separation gap before headings
                                 new_p.paragraph_format.space_after = Pt(4)
                             
                             elif ":" in cleaned_line and not cleaned_line.startswith("http"):
-                                # FIXED: Inline Field Definitions (e.g., "Uniforms: All staff...")
+                                # Inline Field Definitions (e.g., "Uniforms: All staff...")
                                 label_part, text_part = cleaned_line.split(":", 1)
                                 
                                 label_run = new_p.add_run(label_part + ":")
@@ -283,8 +286,8 @@ if st.session_state.logged_in:
                                 text_run.font.size = Pt(9)
                                 text_run.bold = False
                                 
-                                # FIXED: Force a clean spacing gap before this item so it never runs together compressed
-                                new_p.paragraph_format.space_before = Pt(6)
+                                # FIXED: Force a clean padding gap before this item so it never runs together compressed
+                                new_p.paragraph_format.space_before = Pt(8)
                                 new_p.paragraph_format.space_after = Pt(3)
                                 
                             else:
