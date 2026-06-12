@@ -1,381 +1,611 @@
 import streamlit as st
-import gspread
-import json
-import os
+import datetime
+import pandas as pd
 import google.generativeai as genai
+import gspread
+import os
+from fpdf import FPDF
+import json
 import docx
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
+from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+import numpy as np
 
-# --- SESSION STATE INITIALIZATION ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
+# --- SECURE CLOUD SETUP ---
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-2.5-flash') 
 
-# --- COMPLIANCE DATABASE & AI INITIALIZATION ---
 credentials = json.loads(st.secrets["gcp_service_account"])
 gc = gspread.service_account_from_dict(credentials)
+    
+# --- THE SETTINGS ---
+BASE_SCORE = 1000
 
-# Safely paths your active key from your environment dashboard
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-2.5-flash')
+# --- APP MEMORY (THE MEMORY SHIELD) ---
+if 'custom_findings' not in st.session_state:
+    st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
+if 'cached_report_text' not in st.session_state:
+    st.session_state.cached_report_text = ""
+if 'cached_score_data' not in st.session_state:
+    st.session_state.cached_score_data = {}
 
-# Helper function to append thin borders around our multi-document metadata grids
-def set_cell_border(cell, color="CCCCCC", sz="4", val="single"):
-    tcPr = cell._tc.get_or_add_tcPr()
-    tcBorders = OxmlElement('w:tcBorders')
-    for edge in ('top', 'left', 'bottom', 'right'):
-        border = OxmlElement(f'w:{edge}')
-        border.set(qn('w:val'), val)
-        border.set(qn('w:sz'), sz)
-        border.set(qn('w:space'), '0')
-        border.set(qn('w:color'), color)
-        tcBorders.append(border)
-    tcPr.append(tcBorders)
+def add_custom_finding():
+    st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
 # ==========================================
-# ADMINISTRATIVE GATEKEEPER
+# THE GATEKEEPER (LOGIN SCREEN)
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("🪵 Knife & Ember Workspace")
-    st.subheader("🔒 FSCO Administrative Authentication")
+    st.title("📋 Dynamic FSMS System")
+    st.subheader("🔒 Access Restricted")
+    st.write("Please enter the system password to access the audit tools and dashboard.")
     
-    password_input = st.text_input("System Password", type="password")
-    if st.button("Authenticate Panel", use_container_width=True):
+    password_input = st.text_input("Password", type="password")
+    
+    if st.button("Login"):
         if password_input == st.secrets["APP_PASSWORD"]:
             st.session_state.logged_in = True
             st.rerun()
         else:
-            st.error("Access Denied: Invalid Administrative Token.")
+            st.error("Incorrect password. Please try again.")
 
 # ==========================================
-# ENTERPRISE AI ONBOARDING FACTORY
+# THE MAIN APP (HIDDEN BEHIND LOGIN)
 # ==========================================
 if st.session_state.logged_in:
-    st.title("🏭 FSMS Client Onboarding & AI Factory")
-    st.markdown("Compile smart, layout-perfect compliance manuals that preserve your professional consulting document layouts.")
+    
+    # --- PROFESSIONAL SIDEBAR BRANDING & CONTROLS ---
+    st.sidebar.markdown("### 🪵 Knife & Ember")
+    st.sidebar.markdown("*Food Consultancy Services*")
+    st.sidebar.markdown("---")
+    
+    st.sidebar.subheader("⚙️ System Control Panel")
+    establishment_name = st.sidebar.text_input("Establishment Name:", value="Tata's Chicks")
+    fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
+    st.sidebar.caption("🛡️ Certified Food Safety Compliance Officer")
+    audit_date = st.sidebar.date_input("Audit Operational Date:", datetime.date.today())
+    
+    st.sidebar.markdown("---")
+    
+    # Main Title on Page
+    st.title("📋 Operational Surveillance Suite")
+    st.markdown(f"**Active Client:** {establishment_name} | **Food Safety Compliance Officer:** {fsco_name}")
     st.divider()
     
-    # --- STEP 1: ESTABLISHMENT BACKGROUND & CORE ARCHITECTURE ---
-    st.header("🏢 1. Establishment Background & Core Architecture")
-    col1, col2 = st.columns(2)
-    with col1:
-        # FIXED: Placeholders removed completely for a clean text slot entry
-        client_name = st.text_input("Brand Name / Legal Entity Name:", placeholder="")
-        client_location = st.text_input("Operational Unit Address / Province:", placeholder="")
-    with col2:
-        facility_type = st.selectbox(
-            "Facility Operational Classification:",
-            [
-                "Central Commissary Kitchen", 
-                "Full-Service Dine-In Restaurant", 
-                "Cafe / Specialty Coffee Shop (Light Cooking)", 
-                "Micro-Kiosk / Street-Side Retail Stand", 
-                "Pastry Shop & Bakery (No Raw Protein Prep)"
+    tab1, tab2 = st.tabs(["📋 Conduct Operational Audit", "📈 Portfolio Analytics Dashboard"])
+
+    # --- TAB 1: THE AUDIT FORM ---
+    with tab1:
+        st.subheader("Operational Checkpoints")
+        st.write("Toggle deviations observed across processing corridors below:")
+
+        # --- THE FULL CHECKLIST DATA ---
+        MASTER_CHECKLIST = {
+            "Module 1: Personnel Hygiene": [
+                {"Fail?": False, "ID": "1.1", "Description": "Staff observed washing hands for 20s before cooking.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "1.2", "Description": "Handwashing observed after touching face, phone, or trash.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "1.3", "Description": "No bare-hand contact with Ready-to-Eat (RTE) pasta/bread.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "1.4", "Description": "Service gloves changed when soiled or task switching.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "1.5", "Description": "Hand sinks fully stocked with soap & paper towels.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "1.6", "Description": "All kitchen staff wearing effective hair/beard nets.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "1.7", "Description": "No jewelry worn except for a plain wedding band.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "1.8", "Description": "Uniforms are clean; no staff working in personal clothes.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "1.9", "Description": "[LOG CHECK] LOG-GHP-01 current and signed by manager.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": ""}
+            ],
+            "Module 2: Thermal Control": [
+                {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp >= 165 F for 15s.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.2", "Description": "Probe thermometers sanitized before/after each use.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.4", "Description": "No room-temp thawing observed on prep tables.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135 F to 70 F within 2 hours.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp <= 41 F.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at <= 0 F.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "2.8", "Description": "Permanent hanging thermometers present in all units.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "2.9", "Description": "[LOG CHECK] LOG-TEMP-01 (AM/PM checks) has no gaps.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "2.10", "Description": "LOG-CAL-01 (Weekly Ice point) is up to date.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within 2 F.", "Class": "L1", "Notes": ""}
+            ],
+            "Module 3: Preparation & Cross-Contamination": [
+                {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.3", "Description": "[LOG CHECK] LOG-BREAD-01 is initialed and current.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": ""}
+            ],
+            "Module 4: Supply Chain & Traceability": [
+                {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries <= 41 F.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.4", "Description": "Open dry goods (flour/pasta) decanted or sealed.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.5", "Description": "[LOG CHECK] LOG-TRACE-01 links Commissary # to Batch ID.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.6", "Description": "FIFO rotation followed (Older stock in front).", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in storage or prep.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "4.8", "Description": "Packaging is free of leaks, dents, or signs of tampering.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.9", "Description": "Food stored 6 inches off the floor on approved racking.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "4.10", "Description": "Only approved chemicals used (Sanitizer/Degreaser).", "Class": "L2", "Notes": ""}
+            ],
+            "Module 5: Sanitation, Pests & Infrastructure": [
+                {"Fail?": False, "ID": "5.1", "Description": "3-Basin manual setup active (Sink 1, Sink 2, Tub 3).", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "5.3", "Description": "All utensils/pans air-dried; no towels used.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.4", "Description": "[LOG CHECK] LOG-CLN-01 identifies D/W tasks completed.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.5", "Description": "No evidence of rodent droppings or gnaw marks.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "5.6", "Description": "No active fly or cockroach activity in food zones.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "5.7", "Description": "Hole in the back door remains permanently sealed.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.8", "Description": "Grease trap waste layer < 25% of total depth.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.9", "Description": "Broken floor tiles repaired (Harborage prevention).", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.11", "Description": "Exhaust hood filters are free of dripping grease.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces are clean to sight/touch.", "Class": "L2", "Notes": ""}
             ]
-        )
-        regulatory_scope = st.selectbox(
-            "Primary Regulatory Oversight Framework:",
-            [
-                "Local Government LGU Sanitation Code (Standard Retail)", 
-                "FDA GHP/HACCP Mandatory Scope (Manufacturing/Commissaries)", 
-                "NMIS Meat Inspection Enforcement (Primary Meat Processing)"
-            ]
-        )
+        }
 
-    # --- STEP 2: INFRASTRUCTURE & STRUCTURAL UTILITIES ---
-    st.header("🏗️ 2. Infrastructure & Structural Utilities")
-    
-    with st.expander("🛠️ Countertop Fabrication & Cold-Chain Shelving Materials", expanded=True):
-        st.markdown("**Worktop & Prep Surface Fabrication:**")
-        c_ss = st.checkbox("Food-Grade 304 Stainless Steel (Standard Corrosion Resistance)")
-        c_stone = st.checkbox("Natural Stone / Marble & Granite (Porous, Temp-Retaining Dough Prep)")
-        c_wood = st.checkbox("Hardwood / Butcher Block Prep Counters (Highly Porous Artisian Surfaces)")
-        
-        st.markdown("---")
-        st.markdown("**Cold-Chain Storage Shelving Units:**")
-        s_epoxy = st.checkbox("Epoxy-Coated / Plastic Composite Shelving (High-Moisture Coolers)")
-        s_chrome = st.checkbox("Chrome-Plated Wire Shelving (Dry Storage Only)")
+        edited_modules = {}
 
-    with st.expander("🚰 Environmental & Water Engineering Toggles", expanded=False):
-        u_open = st.checkbox("Open-Air / Street-Facing Kiosk Facility Environment (Exposed Vector Risks)")
-        u_manual_water = st.checkbox("Containerized / Manual Gravity Water Supply (No Connected Mains Plumbing)")
-        u_ice = st.checkbox("On-Site Commercial Ice Production Equipment (High Slime/Mold Biofilm Risks)")
-        u_hoods = st.checkbox("Commercial Ventilation Hoods & Active ANSUL Fire Suppression Arrays")
+        for module_name, checkpoints in MASTER_CHECKLIST.items():
+            with st.expander(f"📁 {module_name}", expanded=False):
+                df = pd.DataFrame(checkpoints)
+                edited_df = st.data_editor(
+                    df,
+                    column_config={
+                        "Fail?": st.column_config.CheckboxColumn("Fail?", default=False),
+                        "ID": st.column_config.TextColumn("Ref ID", disabled=True),
+                        "Description": st.column_config.TextColumn("Checkpoint", disabled=True),
+                        "Class": st.column_config.TextColumn("Class", disabled=True),
+                        "Notes": st.column_config.TextColumn("Notes / Evidence")
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                    key=module_name 
+                )
+                edited_modules[module_name] = edited_df
 
-    # --- STEP 3: DRINK CAPABILITIES & BEVERAGE MATRIX ---
-    st.header("🥤 3. Beverage Capabilities Matrix")
-    with st.expander("☕ Specialty Beverage Program Toggles", expanded=False):
-        d_coffee = st.checkbox("Coffee Based Operations (Espresso Lines / Steam-Wand Management)")
-        d_tea = st.checkbox("Tea Based Programs (Bulk Brewed Batching / Infused Syrups)")
-        d_milk = st.checkbox("Milk Based / Fresh Liquid Dairy Creamers (High-Risk Temperature Loops)")
-        d_nondairy = st.checkbox("Non-Dairy Alternative Milks (Almond, Soy, Oat Allergen Segregation)")
-        d_frappe = st.checkbox("Frappes / Milkshakes served with Whipping Cream Siphon Canisters")
-        d_soda = st.checkbox("Soda Based Operations (Pressurized CO2 Gas Lines / Post-Mix Systems)")
+        st.divider()
 
-    # --- STEP 4: CULINARY MENU CATEGORIES MATRIX ---
-    st.header("🍕 4. Culinary Menu Categories Matrix")
-    with st.expander("🍔 Active Food Menu Item Classifications", expanded=True):
-        f_app = st.checkbox("Appetizers & Finger Foods (Nachos, Fries, Quesadillas)")
-        f_rice = st.checkbox("Rice Bowls / Mass Grains Batching (Bacillus Cereus Mitigation Scope)")
-        f_pasta = st.checkbox("Pre-boiled Pasta Handling & Starch Lines")
-        f_pizza = st.checkbox("Pizza Production (High Flour Dust Allergen & Deck Oven Risks)")
-        f_pastry = st.checkbox("Pastries & Pre-Baked Confectionery Goods")
-        f_icecream = st.checkbox("Soft Serve Ice Cream Operations (High-Risk Liquid Hopper Wash Loops)")
-        f_sandwich = st.checkbox("Sandwiches & Cold Ready-To-Eat (RTE) Manual Assemblies")
-        f_burger = st.checkbox("Burgers & Flat-Top Griddle Operations (High-Velocity Ground Proteins)")
-        f_salad = st.checkbox("Salads & Fresh Raw Produce Washes (Surface Pathogen Controls)")
-        f_poultry = st.checkbox("Chicken Processing (Raw Poultry Cross-Contamination Boundaries)")
-        f_meat = st.checkbox("Pork or Beef Whole Muscle Cuts")
-        f_seafood = st.checkbox("Seafood & Raw/Chilled Marine Proteins")
+        # --- CUSTOM FINDINGS ---
+        st.subheader("➕ Add Custom Findings (On-the-Fly)")
+        for i, finding in enumerate(st.session_state.custom_findings):
+            col1, col2, col3 = st.columns([3, 2, 1])
+            with col1:
+                finding["note"] = st.text_input(f"Violation Note #{i+1}", value=finding["note"], key=f"note_{i}")
+            with col2:
+                options = ["None (No deduction)", "L1 Critical (-25 pts)", "L2 Major (-10 pts)", "L3 Minor (-2 pts)"]
+                finding["level"] = st.selectbox("Risk Level", options, index=options.index(finding["level"]), key=f"lvl_{i}")
+            with col3:
+                st.write(" ")
+                st.write(" ")
+                finding["changelog"] = st.checkbox("Add to Changelog", value=finding["changelog"], key=f"log_{i}")
 
-    st.divider()
+        st.button("➕ Add Another Custom Finding", on_click=add_custom_finding)
+        st.divider()
 
-    # --- STEP 5: AUTOMATION EXECUTION ---
-    st.header("🚀 5. Execute AI Document Generation")
-    if st.button("🔥 Run AI Compilation Engine", use_container_width=True):
-        if not client_name.strip() or not client_location.strip():
-            st.error("Compilation Halted: Brand Name and Address parameters cannot be empty.")
-        else:
-            formatted_sheet_name = client_name.strip().replace(" ", "_")
-            master_path = "templates/master_core_fsms.docx"
+        def get_all_failures():
+            current_failures = []
+            for module_name, df in edited_modules.items():
+                failed_rows = df[df["Fail?"] == True]
+                for index, row in failed_rows.iterrows():
+                    current_failures.append(f"[{row['Class']}] {row['ID']} {row['Description']} - Notes: {row['Notes']}")
+            for finding in st.session_state.custom_findings:
+                if finding["note"].strip() != "":
+                    lvl_code = finding["level"].split()[0]
+                    current_failures.append(f"[{lvl_code}] Custom Finding: {finding['note']}")
+            return current_failures
+
+        # --- ON-DEMAND ACTION GUIDE ---
+        st.subheader("🚨 On-Site Action Guide")
+        if st.button("💡 Consult SOPs for Immediate Actions"):
+            current_failures = get_all_failures()
             
-            if not os.path.exists(master_path):
-                st.error("Compilation Stopped: master_core_fsms.docx was not located inside your templates directory.")
+            if len(current_failures) == 0:
+                st.success("No deviations flagged yet! Everything looks good.")
             else:
-                # --- PHASE A: READ MASTER DATA FOR AI CONTEXT ---
-                with st.spinner("Analyzing master_core_fsms.docx structure..."):
-                    try:
-                        template_doc = Document(master_path)
-                        core_text = "\n".join([p.text for p in template_doc.paragraphs if p.text.strip()])
-                    except Exception as e:
-                        st.error(f"Failed to read master layout text: {e}")
-                        st.stop()
-
-                # --- PHASE B: LIVE AI CUSTOMIZATION FRAMEWORK ---
-                with st.spinner(f"Gemini AI is intelligently customizing your binder collection..."):
-                    # Map structural selections
-                    infra_list = []
-                    if c_ss: infra_list.append("Stainless Steel Counters")
-                    if c_stone: infra_list.append("Natural Stone Surfaces")
-                    if c_wood: infra_list.append("Hardwood Butcher Blocks")
-                    if s_epoxy: infra_list.append("Epoxy-Coated Storage Racks")
-                    if s_chrome: infra_list.append("Chrome Wire Shelving")
-                    if u_open: infra_list.append("Open-Air Kiosk Environment")
-                    if u_manual_water: infra_list.append("Manual Gravity Containerized Water Tank")
-                    if u_ice: infra_list.append("On-Site Commercial Ice Machines")
-                    if u_hoods: infra_list.append("Ventilation Hoods & ANSUL System")
+                company_standards = ""
+                try:
+                    for filename in os.listdir("standards"):
+                        if filename.endswith(".docx"):
+                            doc = docx.Document(os.path.join("standards", filename))
+                            company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
+                except Exception:
+                    company_standards = "WARNING: Could not read standards folder."
                     
-                    # Map drink parameters
-                    drink_list = []
-                    if d_coffee: drink_list.append("Espresso Coffee Operations")
-                    if d_tea: drink_list.append("Brewed Teas & Syrups")
-                    if d_milk: drink_list.append("Liquid Dairy Creamers")
-                    if d_nondairy: drink_list.append("Plant-Based Alternative Milks (Soy/Almond)")
-                    if d_frappe: drink_list.append("Frappes & Whipped Cream Siphons")
-                    if d_soda: drink_list.append("Soda Post-Mix & CO2 Gas Systems")
+                with st.spinner("Consulting company SOPs for immediate fixes..."):
+                    guide_prompt = f"""
+                    You are the FSCO for {establishment_name}. I am currently auditing the kitchen.
+                    Here are the items that just failed: {current_failures}
                     
-                    # Map culinary parameters
-                    menu_list = []
-                    if f_app: menu_list.append("Appetizers (Fries/Nachos)")
-                    if f_rice: menu_list.append("Rice Bowls (Mass Cooked Grains)")
-                    if f_pasta: menu_list.append("Pre-boiled Pasta Handling")
-                    if f_pizza: menu_list.append("Pizza & Heavy Flour Dough Assembly")
-                    if f_pastry: menu_list.append("Pastries & Baked Confectionery")
-                    if f_icecream: menu_list.append("Soft Serve Ice Cream Machine Hoppers")
-                    if f_sandwich: menu_list.append("Sandwiches & Ready-To-Eat Cold Lines")
-                    if f_burger: menu_list.append("Burgers & High-Velocity Flat-Top Griddles")
-                    if f_salad: menu_list.append("Salads & Fresh Raw Produce Chlorination Wash")
-                    if f_poultry: menu_list.append("Raw Poultry (Chicken Processing)")
-                    if f_meat: menu_list.append("Pork/Beef Whole Muscle Cuts")
-                    if f_seafood: menu_list.append("Seafood & Marine Proteins")
-
-                    infra_str = ", ".join(infra_list) if infra_list else "Standard Sealed Structural Layout"
-                    drink_str = ", ".join(drink_list) if drink_list else "No Beverage Operations"
-                    menu_str = ", ".join(menu_list) if menu_list else "Standard Baseline Food Processing"
-
-                    ai_prompt = f"""
-                    You are an expert Food Safety Compliance Officer operating under Philippine regulations (RA 10611, FDA, and NMIS guidelines).
-                    Your task is to take the baseline rules of our manual and rewrite them into a customized collection of separate file documents for our client.
-
-                    CLIENT PROFILE DATA:
-                    - Client Name: {client_name}
-                    - Location/Branch: {client_location}
-                    - Facility Classification: {facility_type}
-                    - Primary Regulation Scope: {regulatory_scope}
-                    - Infrastructure Profile: {infra_str}
-                    - Beverage Capabilities: {drink_str}
-                    - Menu Category Grid: {menu_str}
-
-                    CORE TEMPLATE MANUAL TEXT:
-                    {core_text}
-
-                    ABSOLUTE COMPLIANCE ENGINEERING DIRECTIONS:
-                    1. Separate every single distinct PRP and SOP program block by printing the exact text token string "[PAGE_BREAK]" on its own separate line.
-                    2. Right after a "[PAGE_BREAK]" token, print the formal document tracking title on its own line before starting the headers (e.g., "PRP-01: PERSONNEL HYGIENE AND HEALTH POLICY").
-                    3. Do not generate markdown tables, summary tables, or lists at the beginning of the response. Weave all specific metrics (like PPM levels or cooking temperatures) directly into the text procedures of the corresponding SOP/PRP paragraphs.
-                    4. For each document module, output the 9 core structural headings with their numbers:
-                       1. Purpose
-                       2. Scope
-                       3. Definitions
-                       4. Responsibility
-                       5. Procedure
-                       6. Monitoring
-                       7. Corrective Action
-                       8. Verification
-                       9. Records
-                    5. Format subheadings inside section 5 with subnumbers (e.g., '5.1 Uniform Standards', '5.2 Handwashing Protocol').
-                    6. For specific operational parameters under procedures, use a plain keyword label prefix followed by a colon (e.g., 'Uniforms: All staff must...', 'Method: Staff must scrub...').
-                    7. Do not include markdown asterisks (**), hashtags (##), or source bracket citations like [source: X]. Output clean, text lines.
+                    Based STRICTLY on the following company SOPs, tell me what EXACT immediate physical action I need to instruct the staff to take right now to fix these specific issues.
+                    Do not give me root causes or long-term preventive actions. Just short, bulleted immediate instructions.
+                    
+                    SOPs:
+                    {company_standards}
                     """
-
                     try:
-                        response = model.generate_content(ai_prompt)
-                        ai_output_text = response.text
+                        response = model.generate_content(guide_prompt)
+                        st.warning(response.text)
                     except Exception as e:
-                        st.error(f"Gemini AI Generation Failure: {e}")
-                        st.stop()
+                        st.error(f"Error consulting SOPs: {e}")
 
-                # --- PHASE C: RECONSTRUCT DOCUMENT WITH RUN-LEVEL STYLING & SPACING ---
-                with st.spinner("Executing run-level styling overrides (Times New Roman 9pt)..."):
-                    try:
-                        final_doc = Document(master_path)
-                        
-                        # Completely wipe old text containers out of the file layout structure
-                        while len(final_doc.paragraphs) > 0:
-                            p_to_del = final_doc.paragraphs[0]
-                            p_to_del._element.getparent().remove(p_to_del._element)
-                        
-                        ai_paragraphs = ai_output_text.split("\n")
-                        
-                        # Generates the thin-bordered tracking box header at the top of each standalone document page
-                        def inject_corporate_header(doc_obj, title_text):
-                            tbl = doc_obj.add_table(rows=2, cols=2)
-                            tbl.autofit = False
-                            tbl.columns[0].width = Inches(4.5)
-                            tbl.columns[1].width = Inches(2.0)
-                            
-                            cell_00 = tbl.cell(0, 0)
-                            p_00 = cell_00.paragraphs[0]
-                            p_00.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                            r_00 = p_00.add_run(f"🏢 FOOD SAFETY MANAGEMENT SYSTEM | {client_name.upper()}")
-                            r_00.font.name = 'Times New Roman'
-                            r_00.font.size = Pt(8)
-                            r_00.font.color.rgb = RGBColor(100, 100, 100)
-                            
-                            cell_01 = tbl.cell(0, 1)
-                            p_01 = cell_01.paragraphs[0]
-                            p_01.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                            r_01 = p_01.add_run("Doc Ref: FSMS-PRP-SOP-2026")
-                            r_01.font.name = 'Times New Roman'
-                            r_01.font.size = Pt(8)
-                            r_01.font.color.rgb = RGBColor(100, 100, 100)
-                            
-                            cell_10 = tbl.cell(1, 0)
-                            p_10 = cell_10.paragraphs[0]
-                            p_10.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                            r_10 = p_10.add_run(title_text.upper())
-                            r_10.font.name = 'Times New Roman'
-                            r_10.font.size = Pt(10)
-                            r_10.bold = True
-                            
-                            cell_11 = tbl.cell(1, 1)
-                            p_11 = cell_11.paragraphs[0]
-                            p_11.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                            r_11 = p_11.add_run("Standard: RA 10611 / GHP")
-                            r_11.font.name = 'Times New Roman'
-                            r_11.font.size = Pt(8)
-                            r_11.font.italic = True
-                            r_11.font.color.rgb = RGBColor(100, 100, 100)
-                            
-                            for row in tbl.rows:
-                                for cell in row.cells:
-                                    set_cell_border(cell)
-                            
-                            spacer = doc_obj.add_paragraph()
-                            spacer.paragraph_format.space_after = Pt(12)
+        st.divider()
+        st.subheader("🖋️ Verification & Sign-Off")
+        st.write("Sign inside the boundary panel below to authenticate this verification log:")
 
-                        # Set page 1 tracker trigger
-                        is_next_line_title = True
-                        
-                        for line in ai_paragraphs:
-                            cleaned_line = line.strip()
-                            if not cleaned_line:
-                                continue
-                            
-                            if cleaned_line == "[PAGE_BREAK]":
-                                final_doc.add_page_break()
-                                is_next_line_title = True
-                                continue
-                            
-                            if is_next_line_title:
-                                inject_corporate_header(final_doc, cleaned_line)
-                                is_next_line_title = False
-                                continue
-                            
-                            # Advanced structural title matching logic
-                            is_heading = False
-                            first_word = cleaned_line.split(" ")[0] if " " in cleaned_line else cleaned_line
-                            if (first_word and first_word[0].isdigit() and "." in first_word) or \
-                               cleaned_line.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")) or \
-                               cleaned_line in ["Purpose", "Scope", "Definitions", "Responsibility", "Procedure", "Monitoring", "Corrective Action", "Verification", "Records"] or \
-                               cleaned_line.startswith(("PRP-", "SOP-")):
-                                is_heading = True
-                            
-                            new_p = final_doc.add_paragraph()
-                            new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                            
-                            if is_heading:
-                                # Primary Section Headings - Full run bolded
-                                run = new_p.add_run(cleaned_line)
-                                run.font.name = 'Times New Roman'
-                                run.font.size = Pt(9)
-                                run.bold = True
-                                new_p.paragraph_format.space_before = Pt(14)
-                                new_p.paragraph_format.space_after = Pt(4)
-                            
-                            elif ":" in cleaned_line and not cleaned_line.startswith("http"):
-                                # Inline Definition Spacing Fix (e.g., "Uniforms: All staff...")
-                                label_part, text_part = cleaned_line.split(":", 1)
-                                
-                                label_run = new_p.add_run(label_part + ":")
-                                label_run.font.name = 'Times New Roman'
-                                label_run.font.size = Pt(9)
-                                label_run.bold = True
-                                
-                                text_run = new_p.add_run(text_part)
-                                text_run.font.name = 'Times New Roman'
-                                text_run.font.size = Pt(9)
-                                text_run.bold = False
-                                
-                                # FIXED: Applies breathing space before the item so it never feels compressed
-                                new_p.paragraph_format.space_before = Pt(8)
-                                new_p.paragraph_format.space_after = Pt(3)
-                                
-                            else:
-                                # Standard body blocks
-                                run = new_p.add_run(cleaned_line)
-                                run.font.name = 'Times New Roman'
-                                run.font.size = Pt(9)
-                                run.bold = False
-                                new_p.paragraph_format.space_before = Pt(0)
-                                new_p.paragraph_format.space_after = Pt(4)
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",  
+            stroke_width=3,                      
+            stroke_color="#000000",              
+            background_color="#FFFFFF",          
+            height=150,                          
+            width=400,                           
+            drawing_mode="freedraw",
+            key="fsco_signature",
+            update_streamlit=True
+        )
 
-                        output_filename = f"{client_name.strip().replace(' ', '_')}_Custom_FSMS.docx"
-                        final_doc.save(output_filename)
-                        st.success(f"🟢 Collection compiled cleanly for {client_name}!")
+        st.divider()
+
+        # --- THE MASTER ENGINE (Final Report Generator) ---
+        if st.button("🔥 Process Metrics & Generate Final Report", use_container_width=True):
+
+            deductions = 0
+            count_L1, count_L2, count_L3 = 0, 0, 0
+            changelog_items = []
+            failed_items = get_all_failures()
+            failed_items_formatted = "\n".join([f"- {item}" for item in failed_items]) if failed_items else "No violations found."
+            
+            for item in failed_items:
+                if "[L1]" in item: 
+                    deductions += 25
+                    count_L1 += 1
+                elif "[L2]" in item: 
+                    deductions += 10
+                    count_L2 += 1
+                elif "[L3]" in item: 
+                    deductions += 2
+                    count_L3 += 1
+                    
+            for finding in st.session_state.custom_findings:
+                if finding["note"].strip() != "" and finding["changelog"]:
+                    changelog_items.append(finding["note"])
+                
+            final_score = (1 - (deductions / BASE_SCORE)) * 100
+            
+            if final_score >= 95: rating = "Excellent (95-100%)"
+            elif final_score >= 85: rating = "Good (85-94%)"
+            elif final_score >= 75: rating = "Okay (75-84%)"
+            else: rating = "Needs Improvement (<75%)"
+            
+            st.session_state.cached_score_data = {
+                "deductions": deductions,
+                "final_score": final_score,
+                "rating": rating,
+                "count_L1": count_L1,
+                "count_L2": count_L2,
+                "count_L3": count_L3
+            }
+            
+            # Fetch Progress Data
+            progress_context = ""
+            with st.spinner("Analyzing historical trends and saving data..."):
+                try:
+                    sheet = gc.open("Audit_Database").sheet1
+                    existing_data = sheet.get_all_values()
+                    
+                    previous_score = None
+                    for row in reversed(existing_data):
+                        if len(row) >= 5 and row[1] == establishment_name:
+                            try:
+                                previous_score = float(row[2].replace('%', ''))
+                                break 
+                            except ValueError:
+                                continue
+                                
+                    if previous_score is not None:
+                        diff = final_score - previous_score
+                        if diff > 0:
+                            trend = f"Improved by {diff:.1f}%"
+                        elif diff < 0:
+                            trend = f"Declined by {abs(diff):.1f}%"
+                        else:
+                            trend = "Unchanged"
+                        progress_context = f"Previous Audit Score: {previous_score:.1f}% | Current Score: {final_score:.1f}% | Trajectory: {trend}"
+                    else:
+                        progress_context = "No previous historical data found. This is the baseline audit."
                         
-                        with open(output_filename, "rb") as file:
-                            st.download_button(
-                                label=f"📥 Download Collection FSMS Binder for {client_name} (.docx)",
-                                data=file,
-                                file_name=output_filename,
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                use_container_width=True
-                            )
-                        os.remove(output_filename)
+                    violations_text = " | ".join(failed_items)
+                    if violations_text == "" : violations_text = "No violations found."
+                    sheet.append_row([str(audit_date), establishment_name, f"{final_score:.1f}%", deductions, violations_text])
+                    st.success("💾 Audit data saved successfully to Google Sheets!")
+                    
+                except Exception as e:
+                    st.error(f"Could not save to Google Sheets or fetch history. Diagnostic Error: {e}")
+                    progress_context = "Historical data unavailable due to database error."
+
+            if len(changelog_items) > 0:
+                changelog_prompt = "\n".join([f"- {item}" for item in changelog_items])
+            else:
+                changelog_prompt = "No dynamic updates required for this cycle."
+
+            company_standards = ""
+            try:
+                for filename in os.listdir("standards"):
+                    if filename.endswith(".docx"):
+                        doc = docx.Document(os.path.join("standards", filename))
+                        company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
+            except Exception as e:
+                company_standards = f"WARNING: Could not read standards folder. Error: {e}"
+            
+            with st.spinner(f"Gemini is generating the final official report..."):
+                prompt = f"""
+                You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name}. 
+                I just finished an audit on {audit_date}. 
+                The final score is {final_score}% ({deductions} points in deductions). 
+                The specific violations found were: 
+                {failed_items_formatted}
+                
+                CRITICAL RULEBOOK ({establishment_name} PRPs & SOPs):
+                You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
+                Do not invent generic solutions if a solution exists in these rules. 
+                ---
+                {company_standards}
+                ---
+                
+                Write a detailed, highly clinical Audit Executive Summary Report.
+                
+                CRITICAL FORMATTING RULES:
+                - ONLY use **bold** text for entire lines that are section titles or headers.
+                - DO NOT use inline bolding inside of paragraphs.
+                
+                Format the report STRICTLY with these sections exactly as named:
+
+                **1. Executive Summary**
+                Objective: Summarize the surveillance audit purpose.
+                Current Compliance Status: State the score.
+                Administrative Breakdown: Hypothesize the root cause of the systemic failures based on our standards.
+                Key Verdict: Give a strict directive for immediate next steps.
+
+                **2. FSMS Administration: Changelog**
+                Based on the auditor's explicit instructions, here are the items that MUST be added to the manual's changelog:
+                {changelog_prompt}
+                Format this cleanly. If it says "No dynamic updates required", output exactly that.
+
+                **3. Audit Scoring & Finding Summary**
+                Write exactly: "See quantitative table below."
+
+                **3.2 Detailed Finding & Resolution Plan**
+                Provide a clean list of the specific violations found.
+
+                **4. Corrective and Preventive Action (CAPA) Summary**
+                For every L1 and L2 violation, provide a recommended action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
+                Format EXACTLY like this:
+                1. Issue: (State the violation)
+                Immediate Correction: (What to do today)
+                Root Cause: (Hypothesize why it happened)
+                Preventive Action: (How to stop it happening again)
+
+                **5. Mandatory Compliance Toolkit**
+                List any physical safety equipment that must be procured based on the specific violations.
+
+                **6. Historical Progress Summary**
+                Data: [{progress_context}]
+                Provide a portfolio-level 1-2 sentence commentary on the facility's compliance trajectory based on the provided data.
+                """
+                
+                try:
+                    response = model.generate_content(prompt)
+                    st.session_state.cached_report_text = response.text.replace('**', '')
+                    st.session_state.report_generated = True
+                except Exception as e:
+                    st.error(f"Diagnostic Error: {e}")
+
+        # --- THE MEMORY SHIELD PROTECTION CONTAINER ---
+        if st.session_state.report_generated:
+            st.divider()
+            
+            scores = st.session_state.cached_score_data
+            m_col1, m_col2, m_col3 = st.columns(3)
+            m_col1.metric("Final Verification Score", f"{scores['final_score']:.1f}%")
+            m_col2.metric("Total Point Deductions", f"-{scores['deductions']} pts")
+            m_col3.metric("Operational Status", scores['rating'].split()[0])
+            
+            if scores['final_score'] >= 95:
+                st.success("🟢 Facility is operating within an optimal compliance parameter.")
+            elif scores['final_score'] >= 85:
+                st.info("🟡 Facility displays stable parameters with minor correction paths needed.")
+            else:
+                st.error("🔴 Escalated Alert: System parameters drop below baseline safety levels.")
+            
+            st.subheader("🤖 Generated Executive Summary")
+            st.write(st.session_state.cached_report_text)
+
+            signature_saved = False
+            if canvas_result.image_data is not None:
+                img_matrix = canvas_result.image_data
+                
+                if np.any(img_matrix[:, :, 3] > 0): 
+                    raw_sketch = Image.fromarray(img_matrix.astype('uint8'), 'RGBA')
+                    
+                    rgb_signature = Image.new("RGB", raw_sketch.size, (255, 255, 255))
+                    rgb_signature.paste(raw_sketch, mask=raw_sketch.split()[3])
+                    
+                    temp_sig_path = "fsco_signature_temp.png"
+                    rgb_signature.save(temp_sig_path, "PNG")
+                    signature_saved = True
+            
+            try:
+                pdf = FPDF()
+                pdf.add_page()
+                
+                # --- DOCUMENT TITLE BRANDING HEADER ---
+                pdf.set_font("Times", 'B', 14)
+                pdf.cell(0, 8, txt="FSCO Monthly Surveillance & Verification Report", ln=True, align='L')
+                pdf.set_draw_color(180, 180, 180)
+                pdf.line(10, pdf.get_y() + 2, 200, pdf.get_y() + 2)
+                pdf.ln(5)
+                
+                # --- METADATA PANEL BLOCK ---
+                pdf.set_font("Times", 'B', 10)
+                pdf.write(5, "Establishment Name: ")
+                pdf.set_font("Times", '', 10)
+                pdf.write(5, f"{establishment_name}\n")
+                
+                pdf.set_font("Times", 'B', 10)
+                pdf.write(5, "Lead Auditor / FSCO: ")
+                pdf.set_font("Times", '', 10)
+                pdf.write(5, f"{fsco_name}\n")
+                
+                pdf.set_font("Times", 'B', 10)
+                pdf.write(5, "Audit Operation Date: ")
+                pdf.set_font("Times", '', 10)
+                pdf.write(5, f"{audit_date}\n")
+                pdf.ln(6)
+                
+                safe_text = st.session_state.cached_report_text.encode('latin-1', 'replace').decode('latin-1')
+                
+                for line in safe_text.split('\n'):
+                    line = line.strip()
+                    
+                    if not line:
+                        pdf.ln(3)
+                        continue
+                    
+                    # FIXED: Flexible conditional parser catches section triggers correctly
+                    if line.startswith(("1.", "2.", "3.", "4.", "5.", "6.")) or "Audit Scoring" in line or "Finding Summary" in line:
+                        pdf.ln(4)
                         
-                    except Exception as e:
-                        st.error(f"Style Preservation Mapping Failure: {e}")
+                        # Apply clear structural background accent block behind the header string text
+                        current_y = pdf.get_y()
+                        pdf.set_fill_color(240, 240, 240)
+                        pdf.rect(10, current_y, 190, 8, 'F')
+                        
+                        pdf.set_font("Times", 'B', 12)
+                        pdf.cell(0, 8, txt=line, ln=True, fill=True)
+                        pdf.ln(2)
+                        
+                        # FIXED: Seamlessly traps heading event to draw the required metrics data table array grid
+                        if "3. Audit Scoring" in line or "Finding Summary" in line:
+                            pdf.set_font("Times", 'B', 10)
+                            pdf.cell(0, 6, txt="3.1 Quantitative Audit Metric Breakdown", ln=True)
+                            pdf.set_font("Times", '', 9)
+                            pdf.cell(0, 5, txt="Defects weighted across a baseline threshold of 1000 Operational System points.", ln=True)
+                            pdf.ln(2)
+                            
+                            # Build table grid title headers
+                            pdf.set_fill_color(220, 225, 230)
+                            pdf.set_font("Times", 'B', 9)
+                            pdf.cell(60, 7, "Risk Metric Classification", border=1, align='L', fill=True)
+                            pdf.cell(40, 7, "Deduction Weight", border=1, align='C', fill=True)
+                            pdf.cell(40, 7, "Observed Vol Vol", border=1, align='C', fill=True)
+                            pdf.cell(50, 7, "Total Point Deficit", border=1, align='C', fill=True, ln=True)
+                            
+                            # Render tracking metrics values row blocks
+                            pdf.set_font("Times", '', 9)
+                            pdf.cell(60, 6, "L1: Critical Biological / Thermal Hazards", border=1)
+                            pdf.cell(40, 6, "-25 pts / item", border=1, align='C')
+                            pdf.cell(40, 6, str(scores['count_L1']), border=1, align='C')
+                            pdf.cell(50, 6, f"-{scores['count_L1'] * 25} pts", border=1, align='C', ln=True)
+                            
+                            pdf.cell(60, 6, "L2: Major Operational / Logs Deviations", border=1)
+                            pdf.cell(40, 6, "-10 pts / item", border=1, align='C')
+                            pdf.cell(40, 6, str(scores['count_L2']), border=1, align='C')
+                            pdf.cell(50, 6, f"-{scores['count_L2'] * 10} pts", border=1, align='C', ln=True)
+                            
+                            pdf.cell(60, 6, "L3: Minor Infrastructure / Shielding Defects", border=1)
+                            pdf.cell(40, 6, "-2 pts / item", border=1, align='C')
+                            pdf.cell(40, 6, str(scores['count_L3']), border=1, align='C')
+                            pdf.cell(50, 6, f"-{scores['count_L3'] * 2} pts", border=1, align='C', ln=True)
+                            
+                            # Total Metrics Summary Base footer row
+                            pdf.set_fill_color(245, 245, 245)
+                            pdf.set_font("Times", 'B', 9)
+                            pdf.cell(60, 7, "Final Metrics Aggregation", border=1, fill=True)
+                            pdf.cell(40, 7, f"Score: {scores['final_score']:.1f}%", border=1, align='C', fill=True)
+                            pdf.cell(40, 7, f"Total Deductions", border=1, align='C', fill=True)
+                            pdf.cell(50, 7, f"-{scores['deductions']} pts", border=1, align='C', fill=True, ln=True)
+                            pdf.ln(4)
+                    
+                    elif ":" in line and len(line.split(":")[0]) < 40:
+                        parts = line.split(":", 1)
+                        pdf.set_font("Times", 'B', 10)
+                        pdf.write(6, parts[0] + ": ")
+                        pdf.set_font("Times", '', 10)
+                        pdf.write(6, parts[1].strip() + "\n")
+                        pdf.ln(1)
+                        
+                    else:
+                        pdf.set_font("Times", '', 10)
+                        pdf.multi_cell(0, 6, line)
+
+                if signature_saved and os.path.exists("fsco_signature_temp.png"):
+                    pdf.ln(8)
+                    pdf.set_font("Times", 'B', 10)
+                    pdf.cell(0, 5, txt="Authorized Verification Signature:", ln=True)
+                    pdf.ln(2)
+                    pdf.image("fsco_signature_temp.png", x=12, w=55)
+                    os.remove("fsco_signature_temp.png") 
+                
+                pdf_filename = f"Audit_Report_{audit_date}.pdf"
+                pdf.output(pdf_filename)
+                
+                with open(pdf_filename, "rb") as pdf_file:
+                    PDFbyte = pdf_file.read()
+
+                st.download_button(
+                    label="📥 Download Official Executive Summary PDF",
+                    data=PDFbyte,
+                    file_name=pdf_filename,
+                    mime='application/octet-stream',
+                    use_container_width=True
+                )
+                
+                os.remove(pdf_filename)
+            except Exception as e:
+                st.error(f"PDF Printer Error: {e}")
+
+    # --- TAB 2: ANALYTICS DASHBOARD ---
+    with tab2:
+        st.subheader("📈 Historical Metric Tracker")
+        st.write("Review compliance trajectory histories synchronized with your core database records.")
+        
+        if st.button("🔄 Sync Database Records", use_container_width=True):
+            with st.spinner("Fetching data from the Google Sheets vault..."):
+                try:
+                    sheet = gc.open("Audit_Database").sheet1
+                    data = sheet.get_all_values()
+                    
+                    if len(data) > 1: 
+                        df = pd.DataFrame(data[1:])
+                        df = df.iloc[:, :5]
+                        df.columns = ["Date", "Establishment", "Score", "Deductions", "Violations"]
+                        
+                        df["Score"] = df["Score"].astype(str).str.replace("%", "").str.strip()
+                        df["Score"] = pd.to_numeric(df["Score"], errors="coerce")
+                        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                        
+                        df = df.dropna(subset=["Score", "Date"])
+                        df = df.sort_values(by="Date")
+                        
+                        st.line_chart(data=df, x="Date", y="Score", use_container_width=True)
+                        
+                        st.write("**Raw Historical Data Vault:**")
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                        
+                    else:
+                        st.info("No audit data found in the database yet.")
+                        
+                except Exception as e:
+                    st.error(f"Could not load dashboard. Diagnostic Error: {e}")
+
+    # --- SIDEBAR LOGOUT CONTROL ---
+    st.sidebar.button("🔓 End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, report_generated=False, cached_report_text="") or st.rerun(), use_container_width=True)
