@@ -83,7 +83,7 @@ if st.session_state.logged_in:
         st.subheader("Operational Checkpoints")
         st.write("Toggle deviations observed across processing corridors below:")
 
-        # --- THE FULL CHECKLIST DATA ---
+       # --- THE FULL SYNCHRONIZED CHECKLIST DATA ---
         MASTER_CHECKLIST = {
             "Module 1: Personnel Hygiene": [
                 {"Fail?": False, "ID": "1.1", "Description": "Staff observed washing hands for 20s before cooking.", "Class": "L1", "Notes": ""},
@@ -95,46 +95,49 @@ if st.session_state.logged_in:
                 {"Fail?": False, "ID": "1.7", "Description": "No jewelry worn except for a plain wedding band.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "1.8", "Description": "Uniforms are clean; no staff working in personal clothes.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "1.9", "Description": "[LOG CHECK] LOG-GHP-01 current and signed by manager.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": ""}
+                {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "1.11", "Description": "Personal items (phones, bags, drinks etc.,) are stored in a designated areas and not permitted in food zones.", "Class": "L2", "Notes": ""}
             ],
             "Module 2: Thermal Control": [
-                {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp >= 165 F for 15s.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp ≥ 165° F for 15s.", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "2.2", "Description": "Probe thermometers sanitized before/after each use.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch today.", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "2.4", "Description": "No room-temp thawing observed on prep tables.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135 F to 70 F within 2 hours.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp <= 41 F.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at <= 0 F.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135° F to 70° F within 2 hours.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp ≤ 41° F.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at ≤ 0° F.", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "2.8", "Description": "Permanent hanging thermometers present in all units.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "2.9", "Description": "[LOG CHECK] LOG-TEMP-01 (AM/PM checks) has no gaps.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "2.10", "Description": "LOG-CAL-01 (Weekly Ice point) is up to date.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within 2 F.", "Class": "L1", "Notes": ""}
+                {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within ±2° F (Auditor verification).", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "2.12", "Description": "Thawing items stored on the bottom shelf of refrigeration.", "Class": "L2", "Notes": ""}
             ],
             "Module 3: Preparation & Cross-Contamination": [
-                {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours (removed dough balls).", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized every 2 hours.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "3.3", "Description": "[LOG CHECK] LOG-BREAD-01 is initialed and current.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": ""}
+                {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE foods.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade plastic.", "Class": "L3", "Notes": ""},
+                {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE prep.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg in chiller.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "3.9", "Description": "All raw proteins (incl. staff ingredients) are stored strictly below RTE items.", "Class": "L1", "Notes": ""}
             ],
             "Module 4: Supply Chain & Traceability": [
-                {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries <= 41 F.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries ≤ 41° F (verified by staff).", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data for all batches.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "4.4", "Description": "Open dry goods (flour/pasta) decanted or sealed.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "4.5", "Description": "[LOG CHECK] LOG-TRACE-01 links Commissary # to Batch ID.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "4.6", "Description": "FIFO rotation followed (Older stock in front).", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in storage or prep.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in walk-in, dry storage, or prep.", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "4.8", "Description": "Packaging is free of leaks, dents, or signs of tampering.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "4.9", "Description": "Food stored 6 inches off the floor on approved racking.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "4.10", "Description": "Only approved chemicals used (Sanitizer/Degreaser).", "Class": "L2", "Notes": ""}
             ],
             "Module 5: Sanitation, Pests & Infrastructure": [
                 {"Fail?": False, "ID": "5.1", "Description": "3-Basin manual setup active (Sink 1, Sink 2, Tub 3).", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm.", "Class": "L1", "Notes": ""},
+                {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm (verified).", "Class": "L1", "Notes": ""},
                 {"Fail?": False, "ID": "5.3", "Description": "All utensils/pans air-dried; no towels used.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.4", "Description": "[LOG CHECK] LOG-CLN-01 identifies D/W tasks completed.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.5", "Description": "No evidence of rodent droppings or gnaw marks.", "Class": "L1", "Notes": ""},
@@ -142,15 +145,15 @@ if st.session_state.logged_in:
                 {"Fail?": False, "ID": "5.7", "Description": "Hole in the back door remains permanently sealed.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.8", "Description": "Grease trap waste layer < 25% of total depth.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.9", "Description": "Broken floor tiles repaired (Harborage prevention).", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file for the current month.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.11", "Description": "Exhaust hood filters are free of dripping grease.", "Class": "L2", "Notes": ""},
                 {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""}
+                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""},
+                {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces, (walls, floors, ceilings, and shelving) are clean to sight and touch.", "Class": "L2", "Notes": ""}
             ]
         }
-
         edited_modules = {}
 
         for module_name, checkpoints in MASTER_CHECKLIST.items():
