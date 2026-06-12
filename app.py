@@ -147,8 +147,7 @@ if st.session_state.logged_in:
                 {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": ""},
                 {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces are clean to sight/touch.", "Class": "L2", "Notes": ""}
+                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""}
             ]
         }
 
@@ -480,7 +479,11 @@ if st.session_state.logged_in:
                         pdf.ln(3)
                         continue
                     
-                    # FIXED: Flexible conditional parser catches section triggers correctly
+                    # FIXED: Force page break directly before Section 3.2 to keep the layout scannable
+                    if line.startswith("3.2") or "Detailed Finding" in line:
+                        pdf.add_page()
+                    
+                    # Flexible conditional parser catches section triggers correctly
                     if line.startswith(("1.", "2.", "3.", "4.", "5.", "6.")) or "Audit Scoring" in line or "Finding Summary" in line:
                         pdf.ln(4)
                         
@@ -493,7 +496,7 @@ if st.session_state.logged_in:
                         pdf.cell(0, 8, txt=line, ln=True, fill=True)
                         pdf.ln(2)
                         
-                        # FIXED: Seamlessly traps heading event to draw the required metrics data table array grid
+                        # Seamlessly traps heading event to draw the required metrics data table array grid
                         if "3. Audit Scoring" in line or "Finding Summary" in line:
                             pdf.set_font("Times", 'B', 10)
                             pdf.cell(0, 6, txt="3.1 Quantitative Audit Metric Breakdown", ln=True)
