@@ -1,0 +1,84 @@
+{
+  "concept_name": "Hyeongje Grill (Korean Yakiniku & Buffet)",
+  "folder_slug": "hyeongje_grill",
+  "sheet_name": "Hyeongje_Audit_Database",
+  "checklist": {
+    "Module 1: Poor Personal Hygiene & Staff Behavior": [
+      {"Fail?": false, "ID": "1.1", "Description": "Meat-slicing operators and kitchen staff perform full 20-second handwashing coverage (fingers, forearms, wrists) at required intervals and task transitions.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "1.2", "Description": "Front-of-house servers utilize dedicated clean utensils when replenishing raw meat tubs to customer tables; zero bare-hand contact observed.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "1.3", "Description": "Strict execution of a 20-second hand sanitization sequence when service staff transition from clearing dirty tables to delivering fresh food batches.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "1.4", "Description": "Handwashing sinks in both kitchen and buffet line zones are completely unobstructed, with continuous water, liquid antibacterial soap, and single-use paper towels.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "1.5", "Description": "Kitchen prep handlers wear clean uniforms donned on-site; protective work aprons are removed completely before entering restrooms or taking outdoor breaks.", "Class": "L3", "Notes": ""},
+      {"Fail?": false, "ID": "1.6", "Description": "Staff operating mechanical frozen meat slicers wear clean, stainless-steel cut-resistant mesh gloves covered entirely by a fresh disposable food-grade plastic glove.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "1.7", "Description": "Pasig City Health Department Health Certificates (backed by original receipts and medical clearance data) are compiled on-site for 100% of personnel.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "1.8", "Description": "Kitchen crew wear clean hairnets that completely enclose all head hair; front-of-house staff maintain securely tied-back hair arrays.", "Class": "L3", "Notes": ""},
+      {"Fail?": false, "ID": "1.9", "Description": "Fingernails are trimmed short, clean, and free of any polish or enhancements; zero jewelry, wristwatches, or body piercings worn on lines (wedding band excepted).", "Class": "L3", "Notes": ""},
+      {"Fail?": false, "ID": "1.10", "Description": "High-visibility, permanent physical handwashing reminder signs or directional placards are mounted directly above all designated hand sink arrays.", "Class": "L3", "Notes": ""}
+    ],
+    "Module 2: Meat Prep Stations & Mechanical Slicing Operation": [
+      {"Fail?": false, "ID": "2.1", "Description": "Commercial frozen meat slicers are completely broken down, deep cleaned, and sanitized three times daily (e.g., Pre-AM open, 2:30 PM-3:30 PM mid-day gap, and PM close).", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "2.2", "Description": "Slicing operators execute an online 2-minute Clean-In-Place (CIP) surface wipe-down of exposed blade faces and carriage tracks every 2 hours of active shifts.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "2.3", "Description": "Slicing station prep tables and cutting boards are strictly dedicated to raw meats; no ready-to-eat (RTE) side dishes or banchan touch these fields.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "2.4", "Description": "Meat marination process is conducted entirely inside functional commercial refrigeration units running at <= 41°F (5°C).", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "2.5", "Description": "Batch sizes during slicing and marination are tightly controlled; raw meat never sits out on ambient prep tables over 30 minutes.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "2.6", "Description": "Meat tubs and storage bins are food-grade, covered, and clearly labeled with meat type, supplier lot tag, marinade date, and exact expiration shift.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "2.7", "Description": "Staff never mix fresh batches of marinated meat with older, remaining batches in the replenishment tubs (Strictly no top-filling).", "Class": "L1", "Notes": ""}
+    ],
+    "Module 3: Bulk Thawing & Temperature Control (Cold Chain)": [
+      {"Fail?": false, "ID": "3.1", "Description": "Bulk boxes of frozen pork belly and beef brisket are thawed exclusively inside dedicated upright chillers (<= 38°F / 3.3°C) or under clean running cold water streams.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "3.2", "Description": "ABSOLUTELY NO meat is observed thawing at ambient room temperature, on kitchen floors, or in standing warm water pools.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "3.3", "Description": "Upright meat holding chillers maintain an ambient air temperature of 38°F (3.3°C) or below; freezers operate at or below 0°F (-17.7°C).", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "3.4", "Description": "Raw meat storage containers feature functional, unblocked drainage grates so raw protein does not pool in its own purged juices.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "3.5", "Description": "Raw meats awaiting buffet or server dispensing are held in active refrigerated display wells or deep ice beds maintaining <= 41°F.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "3.6", "Description": "Internal food temperatures of raw proteins and cold buffet items are checked, logged, and verified in LOG-TEMP-01 at strict 4-hour intervals.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "3.7", "Description": "Ambient digital thermometers are conspicuous, operational, and accurate across all cold holding and freezing equipment.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "3.8", "Description": "Digital stem probe thermometers are calibrated weekly using the physical Ice-Point Method slurry baseline of exactly 32°F (0°C), with logs entered in LOG-CAL-01.", "Class": "L2", "Notes": ""}
+    ],
+    "Module 4: Banchan (Side Dish) & Buffet Line Management": [
+      {"Fail?": false, "ID": "4.1", "Description": "Cold banchan items (potato salad, macaroni salad, egg mixtures) held on the open buffet line are maintained at <= 41°F (5°C) via the Active Ice-Bed Method.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "4.2", "Description": "Active ice incubator beds are structurally maintained: food pans are nested deeply, ice height matches internal food lines, and meltwater is drained.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "4.3", "Description": "Hot banchan items or stews (Tteokbokki, Jjigae, soups) are maintained continuously in chafing/heating units at >= 135°F (57°C).", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "4.4", "Description": "Buffet service lines are fully equipped with functional, clean sneeze guards protecting food items from customer respiratory droplets.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "4.5", "Description": "Each banchan container features a dedicated, long-handled serving utensil; handles are positioned so they never fall into the food.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "4.6", "Description": "All raw agricultural produce, fresh lettuce, perilla leaves, and soil-bearing root crops (potatoes) are prepared and washed exclusively within the designated back-of-house vegetable prep sink.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "4.7", "Description": "The 3-compartment manual warewashing sink lines and dish pit areas are strictly prohibited from raw material rinsing or agricultural soil removal.", "Class": "L1", "Notes": ""}
+    ],
+    "Module 5: Customer Table Operations & Cross-Contamination Controls": [
+      {"Fail?": false, "ID": "5.1", "Description": "The Multi-Tong Protocol: Every customer table is explicitly provided with distinct, separate tongs for RAW meat vs. COOKED meat.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "5.2", "Description": "Table setups feature visible customer signage, clear placemat instructions, or verbal server briefings detailing raw vs. cooked safety.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "5.3", "Description": "Tabletop grills are verified as operational and pre-heated properly to ensure meats sear instantly rather than stewing at low temps.", "Class": "L3", "Notes": ""},
+      {"Fail?": false, "ID": "5.4", "Description": "Grill plates are replaced immediately at customer request or systematically when heavy carbonized grease/char builds up.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "5.5", "Description": "Cleaned and sanitized replacement grill plates are transported using specialized lifters; clean surfaces never touch soiled zones or aprons.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "5.6", "Description": "Wiping cloths used to clean dining table surfaces between seatings never touch the dispensing caps or pouring rims of active customer table sauce containers.", "Class": "L3", "Notes": ""}
+    ],
+    "Module 6: Degreasing, Cleanliness, & Equipment Sanitization": [
+      {"Fail?": false, "ID": "6.1", "Description": "Tabletop pull-down exhaust hoods/pipes are visibly clean; absolutely no dripping grease inside the hanging pipes over customer grills.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "6.2", "Description": "Dining area and kitchen floors are free of slippery grease films; documented daily application of heavy-duty industrial degreasers.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "6.3", "Description": "Manual warewashing lines execute the 3-basin sequence: Sink 1 (Wash + detergent), Sink 2 (Flowing rinse), Sink 3 (Sanitizer immersion for 1 minute).", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "6.4", "Description": "3-compartment sink sanitizer concentration (Chlorine/Quat) is verified with test strips hourly and logged in LOG-SAN-01.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "6.5", "Description": "The internal storage linings, bases, and wall surfaces of all upright and chest freezers are mechanically scraped weekly to achieve 100% 'No Blood Ice' compliance.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "6.6", "Description": "Gaskets, handles, and tracks of reach-in upright refrigeration units at server stations are clean, non-sticky, and free of residue or slime.", "Class": "L3", "Notes": ""},
+      {"Fail?": false, "ID": "6.7", "Description": "A standardized comprehensive 'Closing Cleaning Checklist' (LOG-CLN-01) is structurally maintained, executed daily, and verified via supervisor sign-off.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "6.8", "Description": "Active food preparation countertops, plating fields, and structural station work surfaces are clean to sight and touch, and chemically sanitized between tasks.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "6.9", "Description": "The exterior rims, caps, and pouring mechanisms of all customer table sauce bottles are systematically scrubbed clean of dried residues and sanitized daily.", "Class": "L3", "Notes": ""}
+    ],
+    "Module 7: Integrated Pest Management (IPM) for High-Grease Systems": [
+      {"Fail?": false, "ID": "7.1", "Description": "Zero evidence of active German cockroach, fly, or rodent infestation across dining rooms, server hubs, prep areas, and dish pits.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "7.2", "Description": "Internal grease traps are completely sealed airtight with functional gaskets, cleaned on a strict weekly schedule, and free of pest breeding.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "7.3", "Description": "Kitchen floor drains are free of organic slime and treated regularly with enzyme-based cleaners to destroy pest food pathways.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "7.4", "Description": "Motor housing compartments and compressor zones of all refrigeration units and chest freezers are free of lint, grease, and pest harborages.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "7.5", "Description": "All bait stations and pest traps are fully secured, intact, and mapped accurately per the licensed Pest Control Operator schematic map.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "7.6", "Description": "Rear kitchen facility exits and screen doors fit flush to the frame; all gaps are strictly below 1/4 inch to block pest entry.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "7.7", "Description": "Heavy-duty, overlapping commercial plastic strip curtains are installed across the rear entry portal to act as an active flying insect barrier.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "7.8", "Description": "Exhaust canopy hoods, overhead intake systems, and ventilation lines are completely fitted with structural tight-mesh filters/screens.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "7.9", "Description": "Food waste scrap bins at server stations are lined with heavy-duty bags, emptied at high frequency, and kept tightly covered when not in active use.", "Class": "L2", "Notes": ""}
+    ],
+    "Module 8: Traceability & Water Quality Infrastructure": [
+      {"Fail?": false, "ID": "8.1", "Description": "Legal Chain of Custody Archive: Store chronologically files all internal commissary delivery invoices or dispatch slips that explicitly cross-reference the original Master NMIS Certificate Lot Numbers.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "8.2", "Description": "Commercial tube or crushed ice is sourced exclusively from a licensed supplier; a photocopy of the supplier's Annual Water Potability Test Certificate is archived on-site.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "8.3", "Description": "Incoming ice plant delivery sacks are inspected daily at arrival to verify that packaging seals are entirely intact, free of debris, and logged in LOG-WATER-01.", "Class": "L2", "Notes": ""},
+      {"Fail?": false, "ID": "8.4", "Description": "Mechanical backflow prevention assemblies (vacuum breakers) are installed and fully operational on all high-pressure kitchen pre-rinse lines.", "Class": "L1", "Notes": ""},
+      {"Fail?": false, "ID": "8.5", "Description": "Main facility potable water line supply test records are updated annually via a DOH-accredited laboratory analysis and filed for immediate inspection.", "Class": "L1", "Notes": ""}
+    ]
+  }
+}

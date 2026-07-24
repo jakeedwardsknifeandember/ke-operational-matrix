@@ -26,6 +26,24 @@ def get_secret(key, default=None):
     except Exception:
         return default
 
+# --- TEXT SANITIZER FOR PDF (PREVENTS '?' ENCODING GLITCHES) ---
+def clean_unicode_text(text):
+    if not text:
+        return ""
+    replacements = {
+        '\u2014': '-',  # em-dash
+        '\u2013': '-',  # en-dash
+        '\u201c': '"',  # left double quote
+        '\u201d': '"',  # right double quote
+        '\u2018': "'",  # left single quote
+        '\u2019': "'",  # right single quote
+        '\u2022': '*',  # bullet
+        '\u2026': '...',# ellipsis
+    }
+    for original, replacement in replacements.items():
+        text = text.replace(original, replacement)
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
 # --- SECURE CLOUD & AI SETUP ---
 gemini_key = get_secret("GEMINI_API_KEY")
 if gemini_key:
@@ -46,6 +64,38 @@ if gcp_secret:
 # --- THE SETTINGS ---
 BASE_SCORE = 1000
 
+# --- DYNAMIC CHECKLIST LOADER (FROM JSON FILES) ---
+def load_all_checklists():
+    checklists = {}
+    checklists_dir = "checklists"
+    
+    if os.path.exists(checklists_dir) and os.path.isdir(checklists_dir):
+        for filename in os.listdir(checklists_dir):
+            if filename.endswith(".json"):
+                file_path = os.path.join(checklists_dir, filename)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        concept_name = data.get("concept_name", filename)
+                        checklists[concept_name] = data
+                except Exception as e:
+                    st.error(f"Error loading checklist '{filename}': {e}")
+                    
+    if not checklists:
+        checklists["Default Checklist"] = {
+            "concept_name": "Default",
+            "folder_slug": "default",
+            "sheet_name": "Audit_Database",
+            "checklist": {
+                "Module 1: General Hygiene": [
+                    {"Fail?": False, "ID": "1.1", "Description": "General sanitation observed.", "Class": "L1", "Notes": ""}
+                ]
+            }
+        }
+    return checklists
+
+CHECKLIST_LIBRARY = load_all_checklists()
+
 # --- APP MEMORY (THE MEMORY SHIELD) ---
 if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
@@ -61,18 +111,32 @@ if 'cached_score_data' not in st.session_state:
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
-def read_company_standards():
+# --- DYNAMIC SOP READER (STORE-SPECIFIC SUBFOLDER) ---
+def read_company_standards(concept_folder):
     company_standards = ""
-    if os.path.exists("standards") and os.path.isdir("standards"):
-        try:
-            for filename in os.listdir("standards"):
-                if filename.endswith(".docx"):
-                    doc = docx.Document(os.path.join("standards", filename))
-                    company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
-        except Exception as e:
-            company_standards = f"WARNING: Could not read standards folder. Error: {e}"
+    target_path = os.path.join("standards", concept_folder)
+    
+    if os.path.exists(target_path) and os.path.isdir(target_path):
+        scan_folder = target_path
+    elif os.path.exists("standards") and os.path.isdir("standards"):
+        scan_folder = "standards"
     else:
-        company_standards = "WARNING: 'standards' directory not found."
+        return "WARNING: No standards directory found for this establishment."
+
+    try:
+        found_docs = False
+        for filename in os.listdir(scan_folder):
+            if filename.endswith(".docx"):
+                found_docs = True
+                doc = docx.Document(os.path.join(scan_folder, filename))
+                company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
+        
+        if not found_docs:
+            company_standards = f"WARNING: No .docx SOP files found in '{scan_folder}'."
+            
+    except Exception as e:
+        company_standards = f"WARNING: Could not read standards folder. Error: {e}"
+        
     return company_standards
 
 # --- AUTOMATED EMAIL BACKEND DISPATCH ---
@@ -90,14 +154,14 @@ def auto_email_report(recipient_email, pdf_path, client_name, score, status):
         msg = MIMEMultipart()
         msg['From'] = f"Knife & Ember <{smtp_user}>"
         msg['To'] = recipient_email
-        msg['Subject'] = f"📋 Food Safety Audit Report: {client_name} - {score:.1f}% ({status})"
+        msg['Subject'] = f"Food Safety Audit Report: {client_name} - {score:.2f}% ({status})"
         
         body = f"""Dear Management,
 
 Please find attached the official FSCO Monthly Surveillance & Verification Report for {client_name}.
 
 Audit Execution Date: {datetime.date.today()}
-Final Verification Score: {score:.1f}%
+Final Verification Score: {score:.2f}%
 Current Operational Status: {status}
 
 This document serves as an official record of operational safety metrics. Required corrective actions (CAPA) must be initiated within the mandated 24-48 hour parameters.
@@ -154,8 +218,8 @@ def auto_upload_to_drive(pdf_path, drive_folder_id):
 # THE GATEKEEPER (LOGIN SCREEN)
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("📋 Dynamic FSMS System")
-    st.subheader("🔒 Access Restricted")
+    st.title("Dynamic FSMS System")
+    st.subheader("Access Restricted")
     st.write("Please enter the system password to access the audit tools and dashboard.")
     
     password_input = st.text_input("Password", type="password")
@@ -163,7 +227,7 @@ if not st.session_state.logged_in:
     if st.button("Login"):
         app_pass = get_secret("APP_PASSWORD")
         if app_pass is None:
-            st.error("⚠️ `APP_PASSWORD` missing from Streamlit secrets. Please set it in secrets.toml or Streamlit Cloud.")
+            st.error("`APP_PASSWORD` missing from Streamlit secrets. Please set it in secrets.toml or Streamlit Cloud.")
         elif password_input == app_pass:
             st.session_state.logged_in = True
             st.rerun()
@@ -175,108 +239,50 @@ if not st.session_state.logged_in:
 # ==========================================
 if st.session_state.logged_in:
     
-    st.sidebar.markdown("### 🪵 Knife & Ember")
+    st.sidebar.markdown("### Knife & Ember")
     st.sidebar.markdown("*Food Consultancy Services*")
     st.sidebar.markdown("---")
     
-    st.sidebar.subheader("⚙️ System Control Panel")
-    establishment_name = st.sidebar.text_input("Establishment Name:", value="Tata's Chicks")
+    st.sidebar.subheader("System Control Panel")
+    
+    # Store Concept Selector
+    selected_concept_name = st.sidebar.selectbox(
+        "Select Store Concept / Module Profile:",
+        options=list(CHECKLIST_LIBRARY.keys())
+    )
+    
+    selected_profile = CHECKLIST_LIBRARY[selected_concept_name]
+    active_folder_slug = selected_profile.get("folder_slug", "default")
+    active_sheet_name = selected_profile.get("sheet_name", "Audit_Database")
+    active_checklist = selected_profile.get("checklist", {})
+    
+    establishment_name = st.sidebar.text_input("Establishment Name:", value="Hyeongje Grill")
     fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
-    st.sidebar.caption("🛡️ Certified Food Safety Compliance Officer")
+    st.sidebar.caption("Certified Food Safety Compliance Officer")
     audit_date = st.sidebar.date_input("Audit Operational Date:", datetime.date.today())
     
     st.sidebar.markdown("---")
-    st.sidebar.subheader("📤 Cloud Dispatch Routing")
-    client_email_input = st.sidebar.text_input("Report Destination Email:", value="management@tataschicks.com")
+    st.sidebar.subheader("Cloud Dispatch Routing")
+    client_email_input = st.sidebar.text_input("Report Destination Email:", value="")
     drive_folder_target = st.sidebar.text_input("Target Drive Folder ID:", value="")
     
     st.sidebar.markdown("---")
     
-    st.title("📋 Operational Surveillance Suite")
-    st.markdown(f"**Active Client:** {establishment_name} | **Food Safety Compliance Officer:** {fsco_name}")
+    st.title("Operational Surveillance Suite")
+    st.markdown(f"**Active Client:** {establishment_name} | **Concept Profile:** {selected_concept_name}")
+    st.caption(f"Active FSMS Standards Directory: standards/{active_folder_slug}/ | Target Database: {active_sheet_name}")
     st.divider()
     
-    tab1, tab2 = st.tabs(["📋 Conduct Operational Audit", "📈 Portfolio Analytics Dashboard"])
+    tab1, tab2 = st.tabs(["Conduct Operational Audit", "Portfolio Analytics Dashboard"])
 
     with tab1:
         st.subheader("Operational Checkpoints")
         st.write("Toggle deviations observed across processing corridors below:")
 
-        MASTER_CHECKLIST = {
-            "Module 1: Personnel Hygiene & Behavioral Control": [
-                {"Fail?": False, "ID": "1.1", "Description": "Staff observed washing hands for 20s before cooking.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "1.2", "Description": "Handwashing observed after touching face, phone, or trash.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "1.3", "Description": "No bare-hand contact with Ready-to-Eat (RTE) pasta/bread.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "1.4", "Description": "Service gloves changed when soiled or task switching.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "1.5", "Description": "Hand sinks fully stocked with soap & paper towels.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "1.6", "Description": "All kitchen staff wearing effective hair/beard nets.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "1.7", "Description": "No jewelry worn except for a plain wedding band.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "1.8", "Description": "Uniforms are clean; no staff working in personal clothes.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "1.9", "Description": "[LOG CHECK] LOG-GHP-01 current and signed by manager.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "1.10", "Description": "Staff can correctly explain the '48-hour sickness rule.'", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "1.11", "Description": "Personal items (phones, bags, drinks etc.,) are stored in a designated areas and not permitted in food zones.", "Class": "L2", "Notes": ""}
-            ],
-            "Module 2: Thermal Control & The 'Kill Step'": [
-                {"Fail?": False, "ID": "2.1", "Description": "Fried Chicken batch internal temp ≥ 165° F for 15s.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.2", "Description": "Probe thermometers sanitized before/after each use.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.3", "Description": "[LOG CHECK] LOG-COOK-01 shows entries for every batch today.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.4", "Description": "No room-temp thawing observed on prep tables.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.5", "Description": "Pasta cooled from 135° F to 70° F within 2 hours.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.6", "Description": "Chiller/Reach-in units maintain food temp ≤ 41° F.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.7", "Description": "Freezer maintains food solid at ≤ 0° F.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.8", "Description": "Permanent hanging thermometers present in all units.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "2.9", "Description": "[LOG CHECK] LOG-TEMP-01 (AM/PM checks) has no gaps.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "2.10", "Description": "LOG-CAL-01 (Weekly Ice point) is up to date.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "2.11", "Description": "Digital probes are accurate within ±2° F (Auditor verification).", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "2.12", "Description": "Thawing items stored on the bottom shelf of refrigeration.", "Class": "L2", "Notes": ""}
-            ],
-            "Module 3: Preparation, Breading & Cross-Contamination": [
-                {"Fail?": False, "ID": "3.1", "Description": "Breading flour sifted every 2 hours (removed dough balls).", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.2", "Description": "Breading 'dip' water changed and basin sanitized every 2 hours.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.3", "Description": "[LOG CHECK] LOG-BREAD-01 is initialed and current.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.4", "Description": "Red tongs used for raw chicken; Green/White for RTE foods.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "3.5", "Description": "Sifters and breading bins are stainless steel/food-grade plastic.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "3.6", "Description": "Separation of at least 4ft maintained between raw and RTE prep.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.7", "Description": "Raw chicken stored strictly below cooked pasta/veg in chiller.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "3.8", "Description": "Wiping cloths stored in sanitizer buckets between uses.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "3.9", "Description": "All raw proteins (incl. staff ingredients) are stored strictly below RTE items.", "Class": "L1", "Notes": ""}
-            ],
-            "Module 4: Supply Chain, Traceability & Labeling": [
-                {"Fail?": False, "ID": "4.1", "Description": "Incoming TCS deliveries ≤ 41° F (verified by staff).", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "4.2", "Description": "[LOG CHECK] LOG-REC-01 includes temp data for all batches.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "4.3", "Description": "All prep containers labeled with Prod Date + Expiry.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "4.4", "Description": "Open dry goods (flour/pasta) decanted or sealed.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "4.5", "Description": "[LOG CHECK] LOG-TRACE-01 links Commissary # to Batch ID.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "4.6", "Description": "FIFO rotation followed (Older stock in front).", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "4.7", "Description": "No expired ingredients found in walk-in, dry storage, or prep.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "4.8", "Description": "Packaging is free of leaks, dents, or signs of tampering.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "4.9", "Description": "Food stored 6 inches off the floor on approved racking.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "4.10", "Description": "Only approved chemicals used (Sanitizer/Degreaser).", "Class": "L2", "Notes": ""}
-            ],
-            "Module 5: Sanitation, Pests & Infrastructure": [
-                {"Fail?": False, "ID": "5.1", "Description": "3-Basin manual setup active (Sink 1, Sink 2, Tub 3).", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "5.2", "Description": "Sanitizer (Chlorine/Quat) at correct ppm (verified).", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "5.3", "Description": "All utensils/pans air-dried; no towels used.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.4", "Description": "[LOG CHECK] LOG-CLN-01 identifies D/W tasks completed.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.5", "Description": "No evidence of rodent droppings or gnaw marks.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "5.6", "Description": "No active fly or cockroach activity in food zones.", "Class": "L1", "Notes": ""},
-                {"Fail?": False, "ID": "5.7", "Description": "Hole in the back door remains permanently sealed.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.8", "Description": "Grease trap waste layer < 25% of total depth.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.9", "Description": "Broken floor tiles repaired (Harborage prevention).", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "5.10", "Description": "PCO professional service report on file for the current month.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.11", "Description": "Exhaust hood filters are free of dripping grease.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.12", "Description": "All light bulbs in kitchen are shielded or shatterproof.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "5.13", "Description": "Handwashing reminder signs posted at all sinks.", "Class": "L3", "Notes": ""},
-                {"Fail?": False, "ID": "5.14", "Description": "Floor drains are screened, cleaned, and free of odors.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.15", "Description": "Trash bins are covered and emptied frequently.", "Class": "L2", "Notes": ""},
-                {"Fail?": False, "ID": "5.16", "Description": "All non-food contact surfaces, (walls, floors, ceilings, and shelving) are clean to sight and touch.", "Class": "L2", "Notes": ""}
-            ]
-        }
-
         edited_modules = {}
 
-        for module_name, checkpoints in MASTER_CHECKLIST.items():
-            with st.expander(f"📁 {module_name}", expanded=False):
+        for module_name, checkpoints in active_checklist.items():
+            with st.expander(f"{module_name}", expanded=False):
                 df = pd.DataFrame(checkpoints)
                 edited_df = st.data_editor(
                     df,
@@ -289,13 +295,13 @@ if st.session_state.logged_in:
                     },
                     hide_index=True,
                     use_container_width=True,
-                    key=module_name 
+                    key=f"{selected_concept_name}_{module_name}"
                 )
                 edited_modules[module_name] = edited_df
 
         st.divider()
 
-        st.subheader("➕ Add Custom Findings (On-the-Fly)")
+        st.subheader("Add Custom Findings (On-the-Fly)")
         for i, finding in enumerate(st.session_state.custom_findings):
             col1, col2, col3 = st.columns([3, 2, 1])
             with col1:
@@ -308,7 +314,18 @@ if st.session_state.logged_in:
                 st.write(" ")
                 finding["changelog"] = st.checkbox("Add to Changelog", value=finding["changelog"], key=f"log_{i}")
 
-        st.button("➕ Add Another Custom Finding", on_click=add_custom_finding)
+        st.button("Add Another Custom Finding", on_click=add_custom_finding)
+        st.divider()
+
+        # AUDITOR'S NOTES FIELD
+        st.subheader("Auditor's Notes & Field Observations")
+        auditor_notes = st.text_area(
+            "General Auditor Notes, Recommendations, or Store Commendations:",
+            value="",
+            placeholder="Enter additional field findings, client requests, positive commendations, or specific auditor suggestions here...",
+            height=110,
+            key="auditor_notes_field"
+        )
         st.divider()
 
         def get_all_failures():
@@ -323,20 +340,20 @@ if st.session_state.logged_in:
                     current_failures.append(f"[{lvl_code}] Custom Finding: {finding['note']}")
             return current_failures
 
-        st.subheader("🚨 On-Site Action Guide")
-        if st.button("💡 Consult SOPs for Immediate Actions"):
+        st.subheader("On-Site Action Guide")
+        if st.button("Consult SOPs for Immediate Actions"):
             current_failures = get_all_failures()
             
             if len(current_failures) == 0:
                 st.success("No deviations flagged yet! Everything looks good.")
             elif not model:
-                st.error("⚠️ Gemini API Key is missing. Set `GEMINI_API_KEY` in secrets to use AI guidance.")
+                st.error("Gemini API Key is missing. Set `GEMINI_API_KEY` in secrets to use AI guidance.")
             else:
-                company_standards = read_company_standards()
+                company_standards = read_company_standards(active_folder_slug)
                     
-                with st.spinner("Consulting company SOPs for immediate fixes..."):
+                with st.spinner(f"Consulting {selected_concept_name} SOPs for immediate fixes..."):
                     guide_prompt = f"""
-                    You are the FSCO for {establishment_name}. I am currently auditing the kitchen.
+                    You are the FSCO for {establishment_name} ({selected_concept_name}). I am currently auditing the kitchen.
                     Here are the items that just failed: {current_failures}
                     
                     Based STRICTLY on the following company SOPs, tell me what EXACT immediate physical action I need to instruct the staff to take right now to fix these specific issues.
@@ -352,7 +369,7 @@ if st.session_state.logged_in:
                         st.error(f"Error consulting SOPs: {e}")
 
         st.divider()
-        st.subheader("🖋️ Verification & Sign-Off")
+        st.subheader("Verification & Sign-Off")
         st.write("Sign inside the boundary panel below to authenticate this verification log:")
 
         canvas_result = st_canvas(
@@ -369,7 +386,7 @@ if st.session_state.logged_in:
 
         st.divider()
 
-        if st.button("🔥 Process Metrics & Generate Final Report", use_container_width=True):
+        if st.button("Process Metrics & Generate Final Report", use_container_width=True):
 
             deductions = 0
             count_L1, count_L2, count_L3 = 0, 0, 0
@@ -392,7 +409,8 @@ if st.session_state.logged_in:
                 if finding["note"].strip() != "" and finding["changelog"]:
                     changelog_items.append(finding["note"])
                 
-            final_score = (1 - (deductions / BASE_SCORE)) * 100
+            # STRICT 2-DECIMAL FLOATING-POINT FIX
+            final_score = round((1 - (deductions / BASE_SCORE)) * 100, 2)
             
             if final_score >= 95: rating = "Excellent (95-100%)"
             elif final_score >= 85: rating = "Good (85-94%)"
@@ -411,11 +429,11 @@ if st.session_state.logged_in:
             progress_context = ""
             with st.spinner("Analyzing historical trends and saving data..."):
                 if gc is None:
-                    st.warning("⚠️ Google Sheets credentials (`gcp_service_account`) are not configured. Skipping database save.")
+                    st.warning("Google Sheets credentials (`gcp_service_account`) are not configured. Skipping database save.")
                     progress_context = "Historical data unavailable (Database connection unconfigured)."
                 else:
                     try:
-                        sheet = gc.open("Audit_Database").sheet1
+                        sheet = gc.open(active_sheet_name).sheet1
                         existing_data = sheet.get_all_values()
                         
                         previous_score = None
@@ -430,35 +448,36 @@ if st.session_state.logged_in:
                         if previous_score is not None:
                             diff = final_score - previous_score
                             if diff > 0:
-                                trend = f"Improved by {diff:.1f}%"
+                                trend = f"Improved by {diff:.2f}%"
                             elif diff < 0:
-                                trend = f"Declined by {abs(diff):.1f}%"
+                                trend = f"Declined by {abs(diff):.2f}%"
                             else:
                                 trend = "Unchanged"
-                            progress_context = f"Previous Audit Score: {previous_score:.1f}% | Current Score: {final_score:.1f}% | Trajectory: {trend}"
+                            progress_context = f"Previous Audit Score: {previous_score:.2f}% | Current Score: {final_score:.2f}% | Trajectory: {trend}"
                         else:
                             progress_context = "No previous historical data found. This is the baseline audit."
                             
                         violations_text = " | ".join(failed_items)
                         if violations_text == "" : violations_text = "No violations found."
-                        sheet.append_row([str(audit_date), establishment_name, f"{final_score:.1f}%", deductions, violations_text])
-                        st.success("💾 Audit numerical rows mapped securely to your Google Sheet.")
+                        sheet.append_row([str(audit_date), establishment_name, f"{final_score:.2f}%", deductions, violations_text])
+                        st.success(f"Audit numerical rows mapped securely to sheet: {active_sheet_name}")
                         
                     except Exception as e:
                         st.error(f"Could not save to Google Sheets or fetch history. Diagnostic Error: {e}")
                         progress_context = "Historical data unavailable due to database error."
 
             changelog_prompt = "\n".join([f"- {item}" for item in changelog_items]) if len(changelog_items) > 0 else "No dynamic updates required for this cycle."
-            company_standards = read_company_standards()
+            notes_prompt = auditor_notes.strip() if auditor_notes.strip() else "No additional auditor notes recorded for this cycle."
+            company_standards = read_company_standards(active_folder_slug)
             
             if not model:
-                st.error("⚠️ Gemini API Key missing. Set `GEMINI_API_KEY` in secrets to generate the report.")
+                st.error("Gemini API Key missing. Set `GEMINI_API_KEY` in secrets to generate the report.")
             else:
                 with st.spinner("Gemini is generating the final official report..."):
                     prompt = f"""
-                    You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name}. 
+                    You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name} (Concept Profile: {selected_concept_name}). 
                     I just finished an audit on {audit_date}. 
-                    The final score is {final_score}% ({deductions} points in deductions). 
+                    The final score is {final_score:.2f}% ({deductions} points in deductions). 
                     The specific violations found were: 
                     {failed_items_formatted}
                     
@@ -472,8 +491,9 @@ if st.session_state.logged_in:
                     Write a detailed, highly clinical Audit Executive Summary Report.
                     
                     CRITICAL FORMATTING RULES:
-                    - ONLY use **bold** text for entire lines that are section titles or headers.
+                    - ONLY use **bold** text for section titles or headers.
                     - DO NOT use inline bolding inside of paragraphs.
+                    - Use simple dashes (-) instead of em-dashes (—).
                     
                     Format the report STRICTLY with these sections exactly as named:
 
@@ -508,6 +528,10 @@ if st.session_state.logged_in:
                     **6. Historical Progress Summary**
                     Data: [{progress_context}]
                     Provide a portfolio-level 1-2 sentence commentary on the facility's compliance trajectory based on the provided data.
+
+                    **7. Auditor Notes & Recommendations**
+                    Direct observations and suggestions provided by the Lead Auditor:
+                    {notes_prompt}
                     """
                     
                     try:
@@ -522,18 +546,18 @@ if st.session_state.logged_in:
             
             scores = st.session_state.cached_score_data
             m_col1, m_col2, m_col3 = st.columns(3)
-            m_col1.metric("Final Verification Score", f"{scores['final_score']:.1f}%")
+            m_col1.metric("Final Verification Score", f"{scores['final_score']:.2f}%")
             m_col2.metric("Total Point Deductions", f"-{scores['deductions']} pts")
             m_col3.metric("Operational Status", scores['rating'].split()[0])
             
             if scores['final_score'] >= 95:
-                st.success("🟢 Facility is operating within an optimal compliance parameter.")
+                st.success("Facility is operating within an optimal compliance parameter.")
             elif scores['final_score'] >= 85:
-                st.info("🟡 Facility displays stable parameters with minor correction paths needed.")
+                st.info("Facility displays stable parameters with minor correction paths needed.")
             else:
-                st.error("🔴 Escalated Alert: System parameters drop below baseline safety levels.")
+                st.error("Escalated Alert: System parameters drop below baseline safety levels.")
             
-            st.subheader("🤖 Generated Executive Summary")
+            st.subheader("Generated Executive Summary")
             st.write(st.session_state.cached_report_text)
 
             signature_saved = False
@@ -552,8 +576,11 @@ if st.session_state.logged_in:
             
             try:
                 pdf = FPDF()
+                pdf.set_left_margin(10)
+                pdf.set_right_margin(10)
                 pdf.add_page()
                 
+                # REPORT HEADER
                 pdf.set_font("Times", 'B', 14)
                 pdf.cell(0, 8, txt="FSCO Monthly Surveillance & Verification Report", ln=True, align='L')
                 pdf.set_draw_color(180, 180, 180)
@@ -561,43 +588,62 @@ if st.session_state.logged_in:
                 pdf.ln(5)
                 
                 pdf.set_font("Times", 'B', 10)
-                pdf.write(5, "Establishment Name: ")
+                pdf.cell(42, 5, "Establishment Name:", ln=False)
                 pdf.set_font("Times", '', 10)
-                pdf.write(5, f"{establishment_name}\n")
+                pdf.cell(0, 5, f"{establishment_name} ({selected_concept_name})", ln=True)
                 
                 pdf.set_font("Times", 'B', 10)
-                pdf.write(5, "Lead Auditor / FSCO: ")
+                pdf.cell(42, 5, "Lead Auditor / FSCO:", ln=False)
                 pdf.set_font("Times", '', 10)
-                pdf.write(5, f"{fsco_name}\n")
+                pdf.cell(0, 5, f"{fsco_name}", ln=True)
                 
                 pdf.set_font("Times", 'B', 10)
-                pdf.write(5, "Audit Operation Date: ")
+                pdf.cell(42, 5, "Audit Operation Date:", ln=False)
                 pdf.set_font("Times", '', 10)
-                pdf.write(5, f"{audit_date}\n")
+                pdf.cell(0, 5, f"{audit_date}", ln=True)
                 pdf.ln(6)
                 
-                safe_text = st.session_state.cached_report_text.encode('latin-1', 'replace').decode('latin-1')
+                # SANITIZED UNICODE TEXT (REMOVES '?' GLITCHES)
+                safe_text = clean_unicode_text(st.session_state.cached_report_text)
                 
+                MAIN_SECTION_TITLES = [
+                    "1. Executive Summary",
+                    "2. FSMS Administration: Changelog",
+                    "3. Audit Scoring & Finding Summary",
+                    "3.2 Detailed Finding & Resolution Plan",
+                    "4. Corrective and Preventive Action (CAPA) Summary",
+                    "5. Mandatory Compliance Toolkit",
+                    "6. Historical Progress Summary",
+                    "7. Auditor Notes & Recommendations"
+                ]
+
                 for line in safe_text.split('\n'):
                     line = line.strip()
                     
                     if not line:
-                        pdf.ln(3)
+                        pdf.ln(2)
                         continue
                     
                     if line.startswith("3.2") or "Detailed Finding" in line:
                         pdf.add_page()
                     
-                    if line.startswith(("1.", "2.", "3.", "4.", "5.", "6.")) or "Audit Scoring" in line or "Finding Summary" in line:
+                    # 1. MAIN SECTION HEADERS (GREY BANNER)
+                    is_main_header = any(line.startswith(title) for title in MAIN_SECTION_TITLES) or "Audit Scoring" in line
+                    
+                    if is_main_header:
+                        # PREVENT ORPHAN HEADERS: Add new page if header is near page bottom
+                        if pdf.get_y() > 230:
+                            pdf.add_page()
+
                         pdf.ln(4)
-                        
                         current_y = pdf.get_y()
                         pdf.set_fill_color(240, 240, 240)
                         pdf.rect(10, current_y, 190, 8, 'F')
                         
-                        pdf.set_font("Times", 'B', 12)
+                        pdf.set_font("Times", 'B', 11)
+                        pdf.set_text_color(0, 0, 0)
                         pdf.cell(0, 8, txt=line, ln=True, fill=True)
-                        pdf.ln(2)
+                        pdf.ln(3)
                         
                         if "3. Audit Scoring" in line or "Finding Summary" in line:
                             pdf.set_font("Times", 'B', 10)
@@ -632,35 +678,75 @@ if st.session_state.logged_in:
                             pdf.set_fill_color(245, 245, 245)
                             pdf.set_font("Times", 'B', 9)
                             pdf.cell(60, 7, "Final Metrics Aggregation", border=1, fill=True)
-                            pdf.cell(40, 7, f"Score: {scores['final_score']:.1f}%", border=1, align='C', fill=True)
+                            pdf.cell(40, 7, f"Score: {scores['final_score']:.2f}%", border=1, align='C', fill=True)
                             pdf.cell(40, 7, f"Total Deductions", border=1, align='C', fill=True)
                             pdf.cell(50, 7, f"-{scores['deductions']} pts", border=1, align='C', fill=True, ln=True)
                             pdf.ln(4)
                     
-                    elif ":" in line and len(line.split(":")[0]) < 40:
+                    # 2. CAPA ISSUE HEADERS (e.g., "1. Issue:", "2. Issue:")
+                    elif any(line.startswith(f"{i}. Issue:") for i in range(1, 100)) or line.startswith("Issue "):
+                        if pdf.get_y() > 240:
+                            pdf.add_page()
+                        pdf.ln(4)
+                        pdf.set_draw_color(200, 200, 200)
+                        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                        pdf.ln(3)
+                        
                         parts = line.split(":", 1)
                         pdf.set_font("Times", 'B', 10)
-                        pdf.write(6, parts[0] + ": ")
-                        pdf.set_font("Times", '', 10)
-                        pdf.write(6, parts[1].strip() + "\n")
-                        pdf.ln(1)
+                        pdf.set_text_color(160, 30, 30)  # Dark red accent
+                        pdf.cell(0, 5, txt=parts[0] + ":", ln=True)
                         
+                        if len(parts) > 1 and parts[1].strip():
+                            pdf.set_font("Times", 'B', 10)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(0, 5, txt=parts[1].strip())
+                        pdf.ln(2)
+
+                    # 3. SUB-ITEMS WITH LABELS (e.g., "Objective:", "Immediate Correction:", "Root Cause:")
+                    elif ":" in line and len(line.split(":")[0]) < 35:
+                        parts = line.split(":", 1)
+                        label = parts[0].strip() + ":"
+                        body_val = parts[1].strip() if len(parts) > 1 else ""
+                        
+                        pdf.set_font("Times", 'B', 10)
+                        pdf.set_text_color(40, 40, 40)
+                        pdf.cell(0, 5, txt=label, ln=True)
+                        
+                        if body_val:
+                            pdf.set_font("Times", '', 10)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(0, 5, txt=body_val)
+                        pdf.ln(2.5)
+                        
+                    # 4. STANDARD PARAGRAPHS
                     else:
                         pdf.set_font("Times", '', 10)
-                        pdf.multi_cell(0, 6, line)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.multi_cell(0, 5, txt=line)
+                        pdf.ln(2)
 
+                # PREVENT ORPHANED SIGNATURE BLOCK
                 if signature_saved and os.path.exists("fsco_signature_temp.png"):
-                    pdf.ln(8)
+                    if pdf.get_y() > 210:
+                        pdf.add_page()
+                    
+                    pdf.ln(6)
                     pdf.set_font("Times", 'B', 10)
+                    pdf.set_text_color(0, 0, 0)
                     pdf.cell(0, 5, txt="Authorized Verification Signature:", ln=True)
                     pdf.ln(2)
                     pdf.image("fsco_signature_temp.png", x=12, w=55)
+                    pdf.ln(2)
+                    pdf.set_font("Times", '', 9)
+                    pdf.cell(0, 4, txt=f"{fsco_name} | Certified Food Safety Officer", ln=True)
+                    pdf.cell(0, 4, txt="Knife & Ember Food Consultancy Services", ln=True)
                     os.remove("fsco_signature_temp.png") 
                 
                 pdf_filename = f"Audit_Report_{audit_date}.pdf"
                 pdf.output(pdf_filename)
                 
-                st.markdown("### 📤 Server-Side Transmission Dispatch")
+                st.markdown("### Server-Side Transmission Dispatch")
                 
                 if client_email_input.strip():
                     with st.spinner("Pushing official PDF report directly to destination inbox via cloud servers..."):
@@ -672,7 +758,7 @@ if st.session_state.logged_in:
                             status=scores['rating'].split()[0]
                         )
                         if email_success:
-                            st.success(f"📧 Official PDF delivered safely to {client_email_input}")
+                            st.success(f"Official PDF delivered safely to {client_email_input}")
                 
                 if drive_folder_target.strip():
                     with st.spinner("Syncing archival PDF file copy into secure Google Drive vault..."):
@@ -681,26 +767,26 @@ if st.session_state.logged_in:
                             drive_folder_id=drive_folder_target
                         )
                         if drive_success:
-                            st.success("💾 PDF successfully archived in company Google Drive folder.")
+                            st.success("PDF successfully archived in company Google Drive folder.")
                 
                 if os.path.exists(pdf_filename):
                     os.remove(pdf_filename)
-                    st.toast("Temporary compilation file cleared from server cache safely.", icon="🧼")
+                    st.toast("Temporary compilation file cleared from server cache safely.")
                     
             except Exception as e:
                 st.error(f"Automated Processing Delivery Error: {e}")
 
     with tab2:
-        st.subheader("📈 Historical Metric Tracker")
-        st.write("Review compliance trajectory histories synchronized with your core database records.")
+        st.subheader("Historical Metric Tracker")
+        st.write(f"Review compliance trajectory histories for **{selected_concept_name}** synchronized with **{active_sheet_name}**.")
         
-        if st.button("🔄 Sync Database Records", use_container_width=True):
+        if st.button("Sync Database Records", use_container_width=True):
             if gc is None:
-                st.error("⚠️ Google Sheets connection is unconfigured. Make sure `gcp_service_account` is in your secrets.")
+                st.error("Google Sheets connection is unconfigured. Make sure `gcp_service_account` is in your secrets.")
             else:
-                with st.spinner("Fetching data from the Google Sheets vault..."):
+                with st.spinner(f"Fetching data from '{active_sheet_name}'..."):
                     try:
-                        sheet = gc.open("Audit_Database").sheet1
+                        sheet = gc.open(active_sheet_name).sheet1
                         data = sheet.get_all_values()
                         
                         if len(data) > 1: 
@@ -721,9 +807,9 @@ if st.session_state.logged_in:
                             st.dataframe(df, use_container_width=True, hide_index=True)
                             
                         else:
-                            st.info("No audit data found in the database yet.")
+                            st.info("No audit data found in this database sheet yet.")
                             
                     except Exception as e:
                         st.error(f"Could not load dashboard. Diagnostic Error: {e}")
 
-    st.sidebar.button("🔓 End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, report_generated=False, cached_report_text="") or st.rerun(), use_container_width=True)
+    st.sidebar.button("End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, report_generated=False, cached_report_text="") or st.rerun(), use_container_width=True)
