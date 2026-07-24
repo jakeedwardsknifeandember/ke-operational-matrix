@@ -18,6 +18,7 @@ from email import encoders
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
+import tempfile
 
 # --- SAFE SECRETS HELPER ---
 def get_secret(key, default=None):
@@ -99,6 +100,8 @@ CHECKLIST_LIBRARY = load_all_checklists()
 # --- APP MEMORY (THE MEMORY SHIELD) ---
 if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
+if 'photo_evidence' not in st.session_state:
+    st.session_state.photo_evidence = []
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'report_generated' not in st.session_state:
@@ -111,9 +114,11 @@ if 'cached_score_data' not in st.session_state:
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
-# --- DYNAMIC SOP READER (STORE-SPECIFIC SUBFOLDER) ---
-def read_company_standards(concept_folder):
-    company_standards = ""
+def add_photo_slot():
+    st.session_state.photo_evidence.append({"caption": "", "file": None})
+
+# --- TARGETED SOP READER (RAG FILTERED BY FAILED VIOLATIONS) ---
+def read_company_standards(concept_folder, failed_items=None):
     target_path = os.path.join("standards", concept_folder)
     
     if os.path.exists(target_path) and os.path.isdir(target_path):
@@ -125,19 +130,57 @@ def read_company_standards(concept_folder):
 
     try:
         found_docs = False
+        all_paragraphs = []
+
         for filename in os.listdir(scan_folder):
             if filename.endswith(".docx"):
                 found_docs = True
                 doc = docx.Document(os.path.join(scan_folder, filename))
-                company_standards += f"\n--- {filename} ---\n" + "\n".join([p.text for p in doc.paragraphs])
+                for p in doc.paragraphs:
+                    text = p.text.strip()
+                    if text:
+                        all_paragraphs.append((filename, text))
         
         if not found_docs:
-            company_standards = f"WARNING: No .docx SOP files found in '{scan_folder}'."
+            return f"WARNING: No .docx SOP files found in '{scan_folder}'."
+
+        if not failed_items:
+            full_standards = ""
+            current_file = ""
+            for filename, text in all_paragraphs:
+                if filename != current_file:
+                    current_file = filename
+                    full_standards += f"\n--- {filename} ---\n"
+                full_standards += text + "\n"
+            return full_standards
+
+        keywords = set()
+        stopwords = {"the", "and", "for", "with", "that", "this", "from", "have", "were", "been", "none", "notes", "custom", "finding", "l1", "l2", "l3"}
+        for item in failed_items:
+            words = [w.lower().strip(".,()[]:;\"'-") for w in item.split()]
+            meaningful = [w for w in words if len(w) > 2 and w not in stopwords]
+            keywords.update(meaningful)
+
+        relevant_blocks = []
+        for filename, text in all_paragraphs:
+            text_lower = text.lower()
+            if any(kw in text_lower for kw in keywords):
+                relevant_blocks.append(f"[{filename}] {text}")
+
+        if not relevant_blocks:
+            full_standards = ""
+            current_file = ""
+            for filename, text in all_paragraphs:
+                if filename != current_file:
+                    current_file = filename
+                    full_standards += f"\n--- {filename} ---\n"
+                full_standards += text + "\n"
+            return full_standards
+
+        return "\n".join(relevant_blocks)
             
     except Exception as e:
-        company_standards = f"WARNING: Could not read standards folder. Error: {e}"
-        
-    return company_standards
+        return f"WARNING: Could not read standards folder. Error: {e}"
 
 # --- AUTOMATED EMAIL BACKEND DISPATCH ---
 def auto_email_report(recipient_email, pdf_path, client_name, score, status):
@@ -317,6 +360,54 @@ if st.session_state.logged_in:
         st.button("Add Another Custom Finding", on_click=add_custom_finding)
         st.divider()
 
+        # --- PHOTO EVIDENCE ATTACHMENT VAULT ---
+        st.subheader("On-Site Photo Evidence Vault")
+        st.write("Upload or capture photos of observations to embed directly into the report:")
+
+        if not st.session_state.photo_evidence:
+            st.session_state.photo_evidence = [{"caption": "", "file": None}]
+
+        uploaded_photos_data = []
+        for p_idx, photo_item in enumerate(st.session_state.photo_evidence):
+            st.markdown(f"**Photo Evidence #{p_idx+1}**")
+            p_col1, p_col2 = st.columns([3, 2])
+            
+            with p_col1:
+                # Defaulted File Upload to index 0 so webcam stream isn't active on page load
+                input_mode = st.radio(
+                    f"Capture Method #{p_idx+1}:",
+                    ["File Upload", "Camera Snap"],
+                    index=0,
+                    horizontal=True,
+                    key=f"photo_src_{p_idx}"
+                )
+                if input_mode == "Camera Snap":
+                    u_file = st.camera_input(f"Take Photo #{p_idx+1}", key=f"cam_{p_idx}")
+                else:
+                    u_file = st.file_uploader(
+                        f"Upload Photo #{p_idx+1}", 
+                        type=["jpg", "jpeg", "png"], 
+                        key=f"photo_upload_{p_idx}"
+                    )
+            
+            with p_col2:
+                caption = st.text_input(
+                    f"Caption / Location #{p_idx+1}", 
+                    value=photo_item.get("caption", ""), 
+                    placeholder="e.g., Cold storage room - improper raw meat stack height",
+                    key=f"photo_cap_{p_idx}"
+                )
+            
+            if u_file is not None:
+                uploaded_photos_data.append({"file": u_file, "caption": caption})
+                with st.expander(f"Preview Photo #{p_idx+1}", expanded=False):
+                    st.image(u_file, width=220)
+            
+            st.markdown("---")
+
+        st.button("Add Another Photo Evidence Slot", on_click=add_photo_slot)
+        st.divider()
+
         # AUDITOR'S NOTES FIELD
         st.subheader("Auditor's Notes & Field Observations")
         auditor_notes = st.text_area(
@@ -349,7 +440,7 @@ if st.session_state.logged_in:
             elif not model:
                 st.error("Gemini API Key is missing. Set `GEMINI_API_KEY` in secrets to use AI guidance.")
             else:
-                company_standards = read_company_standards(active_folder_slug)
+                company_standards = read_company_standards(active_folder_slug, current_failures)
                     
                 with st.spinner(f"Consulting {selected_concept_name} SOPs for immediate fixes..."):
                     guide_prompt = f"""
@@ -372,17 +463,19 @@ if st.session_state.logged_in:
         st.subheader("Verification & Sign-Off")
         st.write("Sign inside the boundary panel below to authenticate this verification log:")
 
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",  
-            stroke_width=3,                      
-            stroke_color="#000000",              
-            background_color="#FFFFFF",          
-            height=150,                          
-            width=400,                           
-            drawing_mode="freedraw",
-            key="fsco_signature",
-            update_streamlit=True
-        )
+        # Encapsulated in container to ensure iframe mounting stability
+        with st.container():
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 255, 255, 0)",  
+                stroke_width=3,                      
+                stroke_color="#000000",              
+                background_color="#FFFFFF",          
+                height=150,                          
+                width=400,                           
+                drawing_mode="freedraw",
+                key="fsco_signature_canvas",
+                update_streamlit=True
+            )
 
         st.divider()
 
@@ -409,7 +502,6 @@ if st.session_state.logged_in:
                 if finding["note"].strip() != "" and finding["changelog"]:
                     changelog_items.append(finding["note"])
                 
-            # STRICT 2-DECIMAL FLOATING-POINT FIX
             final_score = round((1 - (deductions / BASE_SCORE)) * 100, 2)
             
             if final_score >= 95: rating = "Excellent (95-100%)"
@@ -468,7 +560,8 @@ if st.session_state.logged_in:
 
             changelog_prompt = "\n".join([f"- {item}" for item in changelog_items]) if len(changelog_items) > 0 else "No dynamic updates required for this cycle."
             notes_prompt = auditor_notes.strip() if auditor_notes.strip() else "No additional auditor notes recorded for this cycle."
-            company_standards = read_company_standards(active_folder_slug)
+            
+            company_standards = read_company_standards(active_folder_slug, failed_items)
             
             if not model:
                 st.error("Gemini API Key missing. Set `GEMINI_API_KEY` in secrets to generate the report.")
@@ -574,6 +667,8 @@ if st.session_state.logged_in:
                     rgb_signature.save(temp_sig_path, "PNG")
                     signature_saved = True
             
+            temp_image_files = [] 
+            
             try:
                 pdf = FPDF()
                 pdf.set_left_margin(10)
@@ -603,7 +698,6 @@ if st.session_state.logged_in:
                 pdf.cell(0, 5, f"{audit_date}", ln=True)
                 pdf.ln(6)
                 
-                # SANITIZED UNICODE TEXT (REMOVES '?' GLITCHES)
                 safe_text = clean_unicode_text(st.session_state.cached_report_text)
                 
                 MAIN_SECTION_TITLES = [
@@ -631,7 +725,6 @@ if st.session_state.logged_in:
                     is_main_header = any(line.startswith(title) for title in MAIN_SECTION_TITLES) or "Audit Scoring" in line
                     
                     if is_main_header:
-                        # PREVENT ORPHAN HEADERS: Add new page if header is near page bottom
                         if pdf.get_y() > 230:
                             pdf.add_page()
 
@@ -683,7 +776,7 @@ if st.session_state.logged_in:
                             pdf.cell(50, 7, f"-{scores['deductions']} pts", border=1, align='C', fill=True, ln=True)
                             pdf.ln(4)
                     
-                    # 2. CAPA ISSUE HEADERS (e.g., "1. Issue:", "2. Issue:")
+                    # 2. CAPA ISSUE HEADERS
                     elif any(line.startswith(f"{i}. Issue:") for i in range(1, 100)) or line.startswith("Issue "):
                         if pdf.get_y() > 240:
                             pdf.add_page()
@@ -694,7 +787,7 @@ if st.session_state.logged_in:
                         
                         parts = line.split(":", 1)
                         pdf.set_font("Times", 'B', 10)
-                        pdf.set_text_color(160, 30, 30)  # Dark red accent
+                        pdf.set_text_color(160, 30, 30)
                         pdf.cell(0, 5, txt=parts[0] + ":", ln=True)
                         
                         if len(parts) > 1 and parts[1].strip():
@@ -703,7 +796,7 @@ if st.session_state.logged_in:
                             pdf.multi_cell(0, 5, txt=parts[1].strip())
                         pdf.ln(2)
 
-                    # 3. SUB-ITEMS WITH LABELS (e.g., "Objective:", "Immediate Correction:", "Root Cause:")
+                    # 3. SUB-ITEMS WITH LABELS
                     elif ":" in line and len(line.split(":")[0]) < 35:
                         parts = line.split(":", 1)
                         label = parts[0].strip() + ":"
@@ -726,6 +819,66 @@ if st.session_state.logged_in:
                         pdf.multi_cell(0, 5, txt=line)
                         pdf.ln(2)
 
+                # --- RENDER PHOTO EVIDENCE ANNEX IN PDF (2-COLUMN GRID) ---
+                if uploaded_photos_data:
+                    if pdf.get_y() > 190:
+                        pdf.add_page()
+                    
+                    pdf.ln(4)
+                    current_y = pdf.get_y()
+                    pdf.set_fill_color(240, 240, 240)
+                    pdf.rect(10, current_y, 190, 8, 'F')
+                    pdf.set_font("Times", 'B', 11)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.cell(0, 8, txt="8. Photographic Evidence Log", ln=True, fill=True)
+                    pdf.ln(4)
+
+                    col_x_positions = [12, 105]
+                    col_width = 83
+
+                    # Iterate in pairs for a 2-column layout
+                    for p_pair_idx in range(0, len(uploaded_photos_data), 2):
+                        pair = uploaded_photos_data[p_pair_idx:p_pair_idx+2]
+                        
+                        if pdf.get_y() > 180:
+                            pdf.add_page()
+
+                        row_start_y = pdf.get_y()
+                        max_row_bottom_y = row_start_y
+
+                        for c_offset, photo_item in enumerate(pair):
+                            u_file = photo_item["file"]
+                            cap_text = photo_item["caption"].strip() if photo_item["caption"].strip() else f"Field Evidence #{p_pair_idx + c_offset + 1}"
+                            x_pos = col_x_positions[c_offset]
+
+                            # Save temporary PNG
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                                img = Image.open(u_file)
+                                img.convert("RGB").save(tmp.name)
+                                tmp_path = tmp.name
+                                temp_image_files.append(tmp_path)
+
+                            # Caption positioning
+                            pdf.set_xy(x_pos, row_start_y)
+                            pdf.set_font("Times", 'B', 9)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(col_width, 4, txt=clean_unicode_text(f"Exhibit 8.{p_pair_idx + c_offset + 1}: {cap_text}"))
+                            
+                            caption_end_y = pdf.get_y() + 1
+
+                            # Image height calculation for grid spacing
+                            with Image.open(tmp_path) as pil_img:
+                                img_w, img_h = pil_img.size
+                                calc_h = col_width * (img_h / img_w)
+
+                            pdf.image(tmp_path, x=x_pos, y=caption_end_y, w=col_width)
+                            col_bottom_y = caption_end_y + calc_h + 4
+
+                            if col_bottom_y > max_row_bottom_y:
+                                max_row_bottom_y = col_bottom_y
+
+                        pdf.set_y(max_row_bottom_y)
+
                 # PREVENT ORPHANED SIGNATURE BLOCK
                 if signature_saved and os.path.exists("fsco_signature_temp.png"):
                     if pdf.get_y() > 210:
@@ -745,6 +898,11 @@ if st.session_state.logged_in:
                 
                 pdf_filename = f"Audit_Report_{audit_date}.pdf"
                 pdf.output(pdf_filename)
+
+                # Clean up temporary evidence photo files
+                for tmp_img in temp_image_files:
+                    if os.path.exists(tmp_img):
+                        os.remove(tmp_img)
                 
                 st.markdown("### Server-Side Transmission Dispatch")
                 
