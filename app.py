@@ -15,10 +15,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2.service_account import Credentials
 import tempfile
+
+# --- FIXED SYSTEM CONSTANTS ---
+DRAFT_FILE_PATH = "audit_draft_backup.json"
+PRIMARY_RECIPIENT_EMAIL = "jakeedwards.knifeandember@gmail.com"
 
 # --- SAFE SECRETS HELPER ---
 def get_secret(key, default=None):
@@ -102,6 +103,8 @@ if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
 if 'photo_evidence' not in st.session_state:
     st.session_state.photo_evidence = []
+if 'restored_module_states' not in st.session_state:
+    st.session_state.restored_module_states = {}
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'report_generated' not in st.session_state:
@@ -116,6 +119,40 @@ def add_custom_finding():
 
 def add_photo_slot():
     st.session_state.photo_evidence.append({"caption": "", "file": None})
+
+# --- DRAFT BACKUP HELPERS ---
+def save_audit_draft(concept_name, est_name, branch_loc, fsco, date_val, notes, custom_f, edited_mods):
+    try:
+        module_snapshots = {}
+        for mod_name, mod_df in edited_mods.items():
+            if isinstance(mod_df, pd.DataFrame):
+                module_snapshots[mod_name] = mod_df.to_dict(orient="records")
+
+        draft_payload = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "concept_name": concept_name,
+            "establishment_name": est_name,
+            "branch_name": branch_loc,
+            "fsco_name": fsco,
+            "audit_date": str(date_val),
+            "auditor_notes": notes,
+            "custom_findings": custom_f,
+            "module_states": module_snapshots
+        }
+        
+        with open(DRAFT_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(draft_payload, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Could not save draft backup: {e}")
+        return False
+
+def clear_audit_draft():
+    if os.path.exists(DRAFT_FILE_PATH):
+        try:
+            os.remove(DRAFT_FILE_PATH)
+        except Exception:
+            pass
 
 # --- TARGETED SOP READER (RAG FILTERED BY FAILED VIOLATIONS) ---
 def read_company_standards(concept_folder, failed_items=None):
@@ -183,7 +220,7 @@ def read_company_standards(concept_folder, failed_items=None):
         return f"WARNING: Could not read standards folder. Error: {e}"
 
 # --- AUTOMATED EMAIL BACKEND DISPATCH ---
-def auto_email_report(recipient_email, pdf_path, client_name, score, status):
+def auto_email_report(recipient_email, pdf_path, client_name, branch_name, score, status):
     smtp_user = get_secret("smtp_username")
     smtp_server_val = get_secret("smtp_server")
     smtp_port_val = get_secret("smtp_port")
@@ -197,11 +234,12 @@ def auto_email_report(recipient_email, pdf_path, client_name, score, status):
         msg = MIMEMultipart()
         msg['From'] = f"Knife & Ember <{smtp_user}>"
         msg['To'] = recipient_email
-        msg['Subject'] = f"Food Safety Audit Report: {client_name} - {score:.2f}% ({status})"
+        full_title = f"{client_name} - {branch_name}" if branch_name else client_name
+        msg['Subject'] = f"Food Safety Audit Report: {full_title} - {score:.2f}% ({status})"
         
         body = f"""Dear Management,
 
-Please find attached the official FSCO Monthly Surveillance & Verification Report for {client_name}.
+Please find attached the official FSCO Monthly Surveillance & Verification Report for {full_title}.
 
 Audit Execution Date: {datetime.date.today()}
 Final Verification Score: {score:.2f}%
@@ -230,31 +268,6 @@ Lead Auditor | Knife & Ember Food Consultancy Services
         return True
     except Exception as e:
         st.error(f"Failed to deliver automated email: {e}")
-        return False
-
-# --- AUTOMATED GOOGLE DRIVE VAULT ARCHIVE ---
-def auto_upload_to_drive(pdf_path, drive_folder_id):
-    gcp_raw = get_secret("gcp_service_account")
-    if not gcp_raw:
-        st.error("Missing Google Service Account credentials in secrets.")
-        return False
-    try:
-        gcp_info = json.loads(gcp_raw)
-        scopes = ['https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_info(gcp_info, scopes=scopes)
-        
-        drive_service = build('drive', 'v3', credentials=creds)
-        
-        file_metadata = {
-            'name': os.path.basename(pdf_path),
-            'parents': [drive_folder_id]
-        }
-        media = MediaFileUpload(pdf_path, mimetype='application/pdf')
-        
-        drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        return True
-    except Exception as e:
-        st.error(f"Failed to auto-upload to Google Drive: {e}")
         return False
 
 # ==========================================
@@ -288,10 +301,16 @@ if st.session_state.logged_in:
     
     st.sidebar.subheader("System Control Panel")
     
-    # Store Concept Selector
+    # Store Module Selector
+    concept_keys = list(CHECKLIST_LIBRARY.keys())
+    default_concept_idx = 0
+    if 'restored_concept' in st.session_state and st.session_state.restored_concept in concept_keys:
+        default_concept_idx = concept_keys.index(st.session_state.restored_concept)
+
     selected_concept_name = st.sidebar.selectbox(
-        "Select Store Concept / Module Profile:",
-        options=list(CHECKLIST_LIBRARY.keys())
+        "Select Checklist Profile / Module:",
+        options=concept_keys,
+        index=default_concept_idx
     )
     
     selected_profile = CHECKLIST_LIBRARY[selected_concept_name]
@@ -299,26 +318,62 @@ if st.session_state.logged_in:
     active_sheet_name = selected_profile.get("sheet_name", "Audit_Database")
     active_checklist = selected_profile.get("checklist", {})
     
-    establishment_name = st.sidebar.text_input("Establishment Name:", value="Hyeongje Grill")
-    fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value="Jake-Edwards L. Yboa")
+    est_default = st.session_state.get('restored_est_name', "Hyeongje Grill")
+    branch_default = st.session_state.get('restored_branch_name', "SM Megamall")
+    fsco_default = st.session_state.get('restored_fsco_name', "Jake-Edwards L. Yboa")
+    
+    establishment_name = st.sidebar.text_input("Brand / Establishment Name:", value=est_default)
+    branch_name = st.sidebar.text_input("Branch / Location:", value=branch_default)
+    fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value=fsco_default)
     st.sidebar.caption("Certified Food Safety Compliance Officer")
     audit_date = st.sidebar.date_input("Audit Operational Date:", datetime.date.today())
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("Cloud Dispatch Routing")
-    client_email_input = st.sidebar.text_input("Report Destination Email:", value="")
-    drive_folder_target = st.sidebar.text_input("Target Drive Folder ID:", value="")
+    st.sidebar.info(f"Report Destination Email:\n`{PRIMARY_RECIPIENT_EMAIL}`")
     
     st.sidebar.markdown("---")
+    st.sidebar.subheader("Offline Session Recovery")
     
     st.title("Operational Surveillance Suite")
-    st.markdown(f"**Active Client:** {establishment_name} | **Concept Profile:** {selected_concept_name}")
+    st.markdown(f"**Active Client:** {establishment_name} - {branch_name}")
     st.caption(f"Active FSMS Standards Directory: standards/{active_folder_slug}/ | Target Database: {active_sheet_name}")
     st.divider()
     
     tab1, tab2 = st.tabs(["Conduct Operational Audit", "Portfolio Analytics Dashboard"])
 
     with tab1:
+        # --- UNSAVED DRAFT RECOVERY BANNER ---
+        if os.path.exists(DRAFT_FILE_PATH):
+            try:
+                with open(DRAFT_FILE_PATH, "r", encoding="utf-8") as f:
+                    draft_data = json.load(f)
+                d_time = draft_data.get("timestamp", "Unknown time")
+                d_est = draft_data.get("establishment_name", "Unsaved Establishment")
+                d_br = draft_data.get("branch_name", "")
+                d_label = f"{d_est} ({d_br})" if d_br else d_est
+                
+                st.warning(f"Unsaved audit draft detected for **{d_label}** (Saved on: {d_time}).")
+                d_col1, d_col2 = st.columns([1, 4])
+                with d_col1:
+                    if st.button("Restore Draft", use_container_width=True):
+                        st.session_state.restored_concept = draft_data.get("concept_name", selected_concept_name)
+                        st.session_state.restored_est_name = draft_data.get("establishment_name", establishment_name)
+                        st.session_state.restored_branch_name = draft_data.get("branch_name", branch_name)
+                        st.session_state.restored_fsco_name = draft_data.get("fsco_name", fsco_name)
+                        st.session_state.custom_findings = draft_data.get("custom_findings", [])
+                        st.session_state.restored_notes = draft_data.get("auditor_notes", "")
+                        st.session_state.restored_module_states = draft_data.get("module_states", {})
+                        st.success("Draft restored successfully!")
+                        st.rerun()
+                with d_col2:
+                    if st.button("Discard Draft", use_container_width=True):
+                        clear_audit_draft()
+                        st.toast("Saved draft backup cleared.")
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Error reading draft backup: {e}")
+
         st.subheader("Operational Checkpoints")
         st.write("Toggle deviations observed across processing corridors below:")
 
@@ -326,7 +381,11 @@ if st.session_state.logged_in:
 
         for module_name, checkpoints in active_checklist.items():
             with st.expander(f"{module_name}", expanded=False):
-                df = pd.DataFrame(checkpoints)
+                if module_name in st.session_state.restored_module_states:
+                    df = pd.DataFrame(st.session_state.restored_module_states[module_name])
+                else:
+                    df = pd.DataFrame(checkpoints)
+
                 edited_df = st.data_editor(
                     df,
                     column_config={
@@ -341,6 +400,12 @@ if st.session_state.logged_in:
                     key=f"{selected_concept_name}_{module_name}"
                 )
                 edited_modules[module_name] = edited_df
+
+        # Quick Save Button in Sidebar
+        if st.sidebar.button("Save Draft Progress", use_container_width=True):
+            current_notes = st.session_state.get("auditor_notes_field", "")
+            if save_audit_draft(selected_concept_name, establishment_name, branch_name, fsco_name, audit_date, current_notes, st.session_state.custom_findings, edited_modules):
+                st.sidebar.success("Draft progress saved locally!")
 
         st.divider()
 
@@ -373,7 +438,6 @@ if st.session_state.logged_in:
             p_col1, p_col2 = st.columns([3, 2])
             
             with p_col1:
-                # Defaulted File Upload to index 0 so webcam stream isn't active on page load
                 input_mode = st.radio(
                     f"Capture Method #{p_idx+1}:",
                     ["File Upload", "Camera Snap"],
@@ -410,9 +474,10 @@ if st.session_state.logged_in:
 
         # AUDITOR'S NOTES FIELD
         st.subheader("Auditor's Notes & Field Observations")
+        notes_default = st.session_state.get('restored_notes', "")
         auditor_notes = st.text_area(
             "General Auditor Notes, Recommendations, or Store Commendations:",
-            value="",
+            value=notes_default,
             placeholder="Enter additional field findings, client requests, positive commendations, or specific auditor suggestions here...",
             height=110,
             key="auditor_notes_field"
@@ -442,9 +507,9 @@ if st.session_state.logged_in:
             else:
                 company_standards = read_company_standards(active_folder_slug, current_failures)
                     
-                with st.spinner(f"Consulting {selected_concept_name} SOPs for immediate fixes..."):
+                with st.spinner("Consulting SOPs for immediate fixes..."):
                     guide_prompt = f"""
-                    You are the FSCO for {establishment_name} ({selected_concept_name}). I am currently auditing the kitchen.
+                    You are the FSCO for {establishment_name} - {branch_name}. I am currently auditing the kitchen.
                     Here are the items that just failed: {current_failures}
                     
                     Based STRICTLY on the following company SOPs, tell me what EXACT immediate physical action I need to instruct the staff to take right now to fix these specific issues.
@@ -463,7 +528,6 @@ if st.session_state.logged_in:
         st.subheader("Verification & Sign-Off")
         st.write("Sign inside the boundary panel below to authenticate this verification log:")
 
-        # Encapsulated in container to ensure iframe mounting stability
         with st.container():
             canvas_result = st_canvas(
                 fill_color="rgba(255, 255, 255, 0)",  
@@ -530,12 +594,20 @@ if st.session_state.logged_in:
                         
                         previous_score = None
                         for row in reversed(existing_data):
-                            if len(row) >= 5 and row[1] == establishment_name:
-                                try:
-                                    previous_score = float(row[2].replace('%', ''))
-                                    break 
-                                except ValueError:
-                                    continue
+                            if len(row) >= 5:
+                                # Clean 6-column schema: [Date, Brand, Branch, Score, Deductions, Violations]
+                                if len(row) >= 6 and row[1] == establishment_name and row[2] == branch_name:
+                                    try:
+                                        previous_score = float(row[3].replace('%', ''))
+                                        break
+                                    except ValueError:
+                                        continue
+                                elif len(row) == 5 and row[1] == establishment_name:
+                                    try:
+                                        previous_score = float(row[2].replace('%', ''))
+                                        break
+                                    except ValueError:
+                                        continue
                                     
                         if previous_score is not None:
                             diff = final_score - previous_score
@@ -545,14 +617,20 @@ if st.session_state.logged_in:
                                 trend = f"Declined by {abs(diff):.2f}%"
                             else:
                                 trend = "Unchanged"
-                            progress_context = f"Previous Audit Score: {previous_score:.2f}% | Current Score: {final_score:.2f}% | Trajectory: {trend}"
+                            progress_context = f"Previous Audit Score ({branch_name}): {previous_score:.2f}% | Current Score: {final_score:.2f}% | Trajectory: {trend}"
                         else:
-                            progress_context = "No previous historical data found. This is the baseline audit."
+                            progress_context = f"No previous historical data found for {branch_name}. This is the baseline audit."
                             
-                        violations_text = " | ".join(failed_items)
-                        if violations_text == "" : violations_text = "No violations found."
-                        sheet.append_row([str(audit_date), establishment_name, f"{final_score:.2f}%", deductions, violations_text])
-                        st.success(f"Audit numerical rows mapped securely to sheet: {active_sheet_name}")
+                        violations_text = " | ".join(failed_items) if failed_items else "No violations found."
+                        sheet.append_row([
+                            str(audit_date), 
+                            establishment_name, 
+                            branch_name, 
+                            f"{final_score:.2f}%", 
+                            deductions, 
+                            violations_text
+                        ])
+                        st.success(f"Audit row saved securely to sheet: {active_sheet_name}")
                         
                     except Exception as e:
                         st.error(f"Could not save to Google Sheets or fetch history. Diagnostic Error: {e}")
@@ -568,7 +646,7 @@ if st.session_state.logged_in:
             else:
                 with st.spinner("Gemini is generating the final official report..."):
                     prompt = f"""
-                    You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name} (Concept Profile: {selected_concept_name}). 
+                    You are an expert Lead Food Safety Compliance Officer (FSCO) for {establishment_name} - {branch_name}. 
                     I just finished an audit on {audit_date}. 
                     The final score is {final_score:.2f}% ({deductions} points in deductions). 
                     The specific violations found were: 
@@ -631,6 +709,7 @@ if st.session_state.logged_in:
                         response = model.generate_content(prompt)
                         st.session_state.cached_report_text = response.text.replace('**', '')
                         st.session_state.report_generated = True
+                        clear_audit_draft()
                     except Exception as e:
                         st.error(f"Diagnostic Error: {e}")
 
@@ -675,9 +754,18 @@ if st.session_state.logged_in:
                 pdf.set_right_margin(10)
                 pdf.add_page()
                 
+                logo_path = None
+                for p_logo in ["logo.png", "logo.jpg", "templates/logo.png", "templates/logo.jpg", "assets/logo.png"]:
+                    if os.path.exists(p_logo):
+                        logo_path = p_logo
+                        break
+
+                if logo_path:
+                    pdf.image(logo_path, x=150, y=8, w=45)
+
                 # REPORT HEADER
                 pdf.set_font("Times", 'B', 14)
-                pdf.cell(0, 8, txt="FSCO Monthly Surveillance & Verification Report", ln=True, align='L')
+                pdf.cell(135, 8, txt="FSCO Monthly Surveillance & Verification Report", ln=True, align='L')
                 pdf.set_draw_color(180, 180, 180)
                 pdf.line(10, pdf.get_y() + 2, 200, pdf.get_y() + 2)
                 pdf.ln(5)
@@ -685,7 +773,12 @@ if st.session_state.logged_in:
                 pdf.set_font("Times", 'B', 10)
                 pdf.cell(42, 5, "Establishment Name:", ln=False)
                 pdf.set_font("Times", '', 10)
-                pdf.cell(0, 5, f"{establishment_name} ({selected_concept_name})", ln=True)
+                pdf.cell(0, 5, f"{establishment_name}", ln=True)
+
+                pdf.set_font("Times", 'B', 10)
+                pdf.cell(42, 5, "Branch / Location:", ln=False)
+                pdf.set_font("Times", '', 10)
+                pdf.cell(0, 5, f"{branch_name}", ln=True)
                 
                 pdf.set_font("Times", 'B', 10)
                 pdf.cell(42, 5, "Lead Auditor / FSCO:", ln=False)
@@ -696,7 +789,37 @@ if st.session_state.logged_in:
                 pdf.cell(42, 5, "Audit Operation Date:", ln=False)
                 pdf.set_font("Times", '', 10)
                 pdf.cell(0, 5, f"{audit_date}", ln=True)
-                pdf.ln(6)
+                pdf.ln(5)
+
+                # VISUAL SCORE BADGE / BANNER
+                score_val = scores['final_score']
+                if score_val >= 95.0:
+                    bg_r, bg_g, bg_b = 220, 245, 230
+                    border_r, border_g, border_b = 40, 167, 69
+                    txt_r, txt_g, txt_b = 20, 100, 35
+                    status_label = "EXCELLENT (OPTIMAL COMPLIANCE)"
+                elif score_val >= 85.0:
+                    bg_r, bg_g, bg_b = 255, 243, 205
+                    border_r, border_g, border_b = 255, 193, 7
+                    txt_r, txt_g, txt_b = 133, 100, 4
+                    status_label = "GOOD (STABLE COMPLIANCE)"
+                else:
+                    bg_r, bg_g, bg_b = 248, 215, 218
+                    border_r, border_g, border_b = 220, 53, 69
+                    txt_r, txt_g, txt_b = 114, 28, 36
+                    status_label = "NEEDS IMPROVEMENT (CRITICAL ACTION REQUIRED)"
+
+                banner_y = pdf.get_y()
+                pdf.set_fill_color(bg_r, bg_g, bg_b)
+                pdf.set_draw_color(border_r, border_g, border_b)
+                pdf.rect(10, banner_y, 190, 10, 'DF')
+
+                pdf.set_xy(10, banner_y + 2)
+                pdf.set_font("Times", 'B', 10)
+                pdf.set_text_color(txt_r, txt_g, txt_b)
+                pdf.cell(190, 6, txt=f"VERIFICATION SCORE: {score_val:.2f}%  |  STATUS: {status_label}", align='C', ln=True)
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(4)
                 
                 safe_text = clean_unicode_text(st.session_state.cached_report_text)
                 
@@ -749,21 +872,21 @@ if st.session_state.logged_in:
                             pdf.set_font("Times", 'B', 9)
                             pdf.cell(60, 7, "Risk Metric Classification", border=1, align='L', fill=True)
                             pdf.cell(40, 7, "Deduction Weight", border=1, align='C', fill=True)
-                            pdf.cell(40, 7, "Observed Vol Vol", border=1, align='C', fill=True)
+                            pdf.cell(40, 7, "Observed Deviations", border=1, align='C', fill=True)
                             pdf.cell(50, 7, "Total Point Deficit", border=1, align='C', fill=True, ln=True)
                             
                             pdf.set_font("Times", '', 9)
-                            pdf.cell(60, 6, "L1: Critical Biological / Thermal Hazards", border=1)
+                            pdf.cell(60, 6, "Critical Deviations", border=1)
                             pdf.cell(40, 6, "-25 pts / item", border=1, align='C')
                             pdf.cell(40, 6, str(scores['count_L1']), border=1, align='C')
                             pdf.cell(50, 6, f"-{scores['count_L1'] * 25} pts", border=1, align='C', ln=True)
                             
-                            pdf.cell(60, 6, "L2: Major Operational / Logs Deviations", border=1)
+                            pdf.cell(60, 6, "Major Deviations", border=1)
                             pdf.cell(40, 6, "-10 pts / item", border=1, align='C')
                             pdf.cell(40, 6, str(scores['count_L2']), border=1, align='C')
                             pdf.cell(50, 6, f"-{scores['count_L2'] * 10} pts", border=1, align='C', ln=True)
                             
-                            pdf.cell(60, 6, "L3: Minor Infrastructure / Shielding Defects", border=1)
+                            pdf.cell(60, 6, "Minor Deviations", border=1)
                             pdf.cell(40, 6, "-2 pts / item", border=1, align='C')
                             pdf.cell(40, 6, str(scores['count_L3']), border=1, align='C')
                             pdf.cell(50, 6, f"-{scores['count_L3'] * 2} pts", border=1, align='C', ln=True)
@@ -772,7 +895,9 @@ if st.session_state.logged_in:
                             pdf.set_font("Times", 'B', 9)
                             pdf.cell(60, 7, "Final Metrics Aggregation", border=1, fill=True)
                             pdf.cell(40, 7, f"Score: {scores['final_score']:.2f}%", border=1, align='C', fill=True)
-                            pdf.cell(40, 7, f"Total Deductions", border=1, align='C', fill=True)
+                            
+                            total_observed_count = scores['count_L1'] + scores['count_L2'] + scores['count_L3']
+                            pdf.cell(40, 7, f"{total_observed_count} Items", border=1, align='C', fill=True)
                             pdf.cell(50, 7, f"-{scores['deductions']} pts", border=1, align='C', fill=True, ln=True)
                             pdf.ln(4)
                     
@@ -836,7 +961,6 @@ if st.session_state.logged_in:
                     col_x_positions = [12, 105]
                     col_width = 83
 
-                    # Iterate in pairs for a 2-column layout
                     for p_pair_idx in range(0, len(uploaded_photos_data), 2):
                         pair = uploaded_photos_data[p_pair_idx:p_pair_idx+2]
                         
@@ -851,14 +975,12 @@ if st.session_state.logged_in:
                             cap_text = photo_item["caption"].strip() if photo_item["caption"].strip() else f"Field Evidence #{p_pair_idx + c_offset + 1}"
                             x_pos = col_x_positions[c_offset]
 
-                            # Save temporary PNG
                             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                                 img = Image.open(u_file)
                                 img.convert("RGB").save(tmp.name)
                                 tmp_path = tmp.name
                                 temp_image_files.append(tmp_path)
 
-                            # Caption positioning
                             pdf.set_xy(x_pos, row_start_y)
                             pdf.set_font("Times", 'B', 9)
                             pdf.set_text_color(0, 0, 0)
@@ -866,7 +988,6 @@ if st.session_state.logged_in:
                             
                             caption_end_y = pdf.get_y() + 1
 
-                            # Image height calculation for grid spacing
                             with Image.open(tmp_path) as pil_img:
                                 img_w, img_h = pil_img.size
                                 calc_h = col_width * (img_h / img_w)
@@ -896,36 +1017,34 @@ if st.session_state.logged_in:
                     pdf.cell(0, 4, txt="Knife & Ember Food Consultancy Services", ln=True)
                     os.remove("fsco_signature_temp.png") 
                 
-                pdf_filename = f"Audit_Report_{audit_date}.pdf"
+                # FILENAME FORMAT: Brand (Branch) - Executive Summary Report - [Date].pdf
+                safe_est_filename = "".join(c for c in establishment_name if c.isalnum() or c in (' ', '_', '-')).strip()
+                safe_branch_filename = "".join(c for c in branch_name if c.isalnum() or c in (' ', '_', '-')).strip()
+                
+                if safe_branch_filename:
+                    pdf_filename = f"{safe_est_filename} ({safe_branch_filename}) - Executive Summary Report - {audit_date}.pdf"
+                else:
+                    pdf_filename = f"{safe_est_filename} - Executive Summary Report - {audit_date}.pdf"
+
                 pdf.output(pdf_filename)
 
-                # Clean up temporary evidence photo files
                 for tmp_img in temp_image_files:
                     if os.path.exists(tmp_img):
                         os.remove(tmp_img)
                 
                 st.markdown("### Server-Side Transmission Dispatch")
                 
-                if client_email_input.strip():
-                    with st.spinner("Pushing official PDF report directly to destination inbox via cloud servers..."):
-                        email_success = auto_email_report(
-                            recipient_email=client_email_input,
-                            pdf_path=pdf_filename,
-                            client_name=establishment_name,
-                            score=scores['final_score'],
-                            status=scores['rating'].split()[0]
-                        )
-                        if email_success:
-                            st.success(f"Official PDF delivered safely to {client_email_input}")
-                
-                if drive_folder_target.strip():
-                    with st.spinner("Syncing archival PDF file copy into secure Google Drive vault..."):
-                        drive_success = auto_upload_to_drive(
-                            pdf_path=pdf_filename,
-                            drive_folder_id=drive_folder_target
-                        )
-                        if drive_success:
-                            st.success("PDF successfully archived in company Google Drive folder.")
+                with st.spinner(f"Pushing official PDF report directly to {PRIMARY_RECIPIENT_EMAIL}..."):
+                    email_success = auto_email_report(
+                        recipient_email=PRIMARY_RECIPIENT_EMAIL,
+                        pdf_path=pdf_filename,
+                        client_name=establishment_name,
+                        branch_name=branch_name,
+                        score=scores['final_score'],
+                        status=scores['rating'].split()[0]
+                    )
+                    if email_success:
+                        st.success(f"Official PDF delivered safely to {PRIMARY_RECIPIENT_EMAIL}")
                 
                 if os.path.exists(pdf_filename):
                     os.remove(pdf_filename)
@@ -936,7 +1055,7 @@ if st.session_state.logged_in:
 
     with tab2:
         st.subheader("Historical Metric Tracker")
-        st.write(f"Review compliance trajectory histories for **{selected_concept_name}** synchronized with **{active_sheet_name}**.")
+        st.write(f"Review compliance trajectory histories synchronized with **{active_sheet_name}**.")
         
         if st.button("Sync Database Records", use_container_width=True):
             if gc is None:
@@ -948,21 +1067,35 @@ if st.session_state.logged_in:
                         data = sheet.get_all_values()
                         
                         if len(data) > 1: 
-                            df = pd.DataFrame(data[1:])
-                            df = df.iloc[:, :5]
-                            df.columns = ["Date", "Establishment", "Score", "Deductions", "Violations"]
+                            raw_df = pd.DataFrame(data[1:])
+                            num_cols = raw_df.shape[1]
+                            
+                            # Parse 6-column schema: [Date, Brand, Branch, Score, Deductions, Violations]
+                            if num_cols >= 6:
+                                df = raw_df.iloc[:, :6]
+                                df.columns = ["Date", "Brand", "Branch", "Score", "Deductions", "Violations"]
+                            else:
+                                df = raw_df.iloc[:, :5]
+                                df.columns = ["Date", "Brand", "Score", "Deductions", "Violations"]
+                                df["Branch"] = "Main Branch"
                             
                             df["Score"] = df["Score"].astype(str).str.replace("%", "").str.strip()
                             df["Score"] = pd.to_numeric(df["Score"], errors="coerce")
                             df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                            df = df.dropna(subset=["Score", "Date"]).sort_values(by="Date")
                             
-                            df = df.dropna(subset=["Score", "Date"])
-                            df = df.sort_values(by="Date")
+                            unique_branches = ["All Branches"] + sorted(list(df["Branch"].astype(str).unique()))
+                            selected_branch_view = st.selectbox("Select Branch View:", options=unique_branches)
                             
-                            st.line_chart(data=df, x="Date", y="Score", use_container_width=True)
+                            if selected_branch_view != "All Branches":
+                                filtered_df = df[df["Branch"] == selected_branch_view]
+                            else:
+                                filtered_df = df
+
+                            st.line_chart(data=filtered_df, x="Date", y="Score", use_container_width=True)
                             
                             st.write("**Raw Historical Data Vault:**")
-                            st.dataframe(df, use_container_width=True, hide_index=True)
+                            st.dataframe(filtered_df, use_container_width=True, hide_index=True)
                             
                         else:
                             st.info("No audit data found in this database sheet yet.")
