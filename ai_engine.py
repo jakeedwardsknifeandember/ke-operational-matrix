@@ -144,48 +144,76 @@ def read_company_standards(concept_folder, failed_items=None):
     except Exception as e:
         return f"WARNING: Could not read standards folder. Error: {e}"
 
-def generate_gemini_response(api_key, prompt_text):
-    """Executes prompt via Gemini API, testing text models while skipping non-text audio/TTS endpoints."""
-    if not api_key:
+def generate_gemini_response(api_key_input, prompt_text):
+    """
+    Executes prompt via Gemini API with Multi-Key Failover.
+    Iterates through a pool of backup API keys if a key hits quota limits or 429 rate errors.
+    """
+    if not api_key_input:
         raise Exception("GEMINI_API_KEY is missing from Streamlit secrets.")
     
-    genai.configure(api_key=api_key)
-    
-    candidates = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-flash',
-        'gemini-flash-latest'
-    ]
-    
-    try:
-        for model_item in genai.list_models():
-            if 'generateContent' in model_item.supported_generation_methods:
-                clean_name = model_item.name.replace('models/', '').strip()
-                if not any(bad in clean_name.lower() for bad in ['tts', 'audio', 'imagen', 'embedding', 'realtime']):
-                    if clean_name not in candidates:
-                        candidates.append(clean_name)
-    except Exception:
-        pass
+    # Standardize input into a list of key strings
+    if isinstance(api_key_input, list):
+        api_keys = [str(k).strip() for k in api_key_input if str(k).strip()]
+    else:
+        api_keys = [k.strip() for k in str(api_key_input).split(',') if k.strip()]
+
+    if not api_keys:
+        raise Exception("No valid Gemini API key found in configuration.")
 
     last_error = None
-    for model_name in candidates:
+
+    for key_idx, current_key in enumerate(api_keys):
         try:
-            m = genai.GenerativeModel(model_name)
-            res = m.generate_content(prompt_text)
-            if res and res.text:
-                return res.text
-        except Exception as err:
-            last_error = err
-            err_str = str(err)
-            if any(k in err_str.lower() for k in ["404", "notfound", "not found", "400", "modality", "audio", "tts"]):
-                continue
-            raise err
+            genai.configure(api_key=current_key)
             
+            candidates = [
+                'gemini-2.5-flash',
+                'gemini-2.0-flash',
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-flash',
+                'gemini-flash-latest'
+            ]
+            
+            try:
+                for model_item in genai.list_models():
+                    if 'generateContent' in model_item.supported_generation_methods:
+                        clean_name = model_item.name.replace('models/', '').strip()
+                        if not any(bad in clean_name.lower() for bad in ['tts', 'audio', 'imagen', 'embedding', 'realtime']):
+                            if clean_name not in candidates:
+                                candidates.append(clean_name)
+            except Exception:
+                pass
+
+            # Try candidate models with the current active API key
+            for model_name in candidates:
+                try:
+                    m = genai.GenerativeModel(model_name)
+                    res = m.generate_content(prompt_text)
+                    if res and res.text:
+                        return res.text
+                except Exception as err:
+                    last_error = err
+                    err_str = str(err).lower()
+                    
+                    # 404/modality issues: try next model under the SAME API key
+                    if any(k in err_str for k in ["404", "notfound", "not found", "400", "modality", "audio", "tts"]):
+                        continue
+                    
+                    # Quota exhaustion or Rate Limit (429): break model loop to trigger key failover
+                    if any(k in err_str for k in ["429", "quota", "resourceexhausted", "exhausted", "limit"]):
+                        break
+                    
+                    # Unrecognized error: break model loop to switch key
+                    break
+
+        except Exception as key_err:
+            last_error = key_err
+            continue
+
     if last_error:
         raise last_error
-    raise Exception("No active text-based Gemini model responded for this API key.")
+    raise Exception("All provided Gemini API keys and candidate models were exhausted or failed.")
 
 def generate_ai_report(api_key, client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context):
     """Generates executive summary using Gemini. Raises exception if API fails."""
@@ -200,7 +228,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     You MUST base your Root Cause analysis and Preventive Actions EXACTLY on these company standards. 
     Do NOT invent generic solutions if a solution exists in these rules. 
     STRICT ANTI-HALLUCINATION RULES:
-    - DO NOT invent, generate, or cite section numbers, clause numbers, or clause IDs.
+    - You may cite exact section or clause numbers (e.g., Section 5.3.1) ONLY IF they explicitly appear in the provided company standards. DO NOT invent, guess, or hallucinate fake section numbers.
     - Reference specific form codes cleanly as written in the standards (e.g., FORM LOG-DEV-01, FORM LOG-TEMP-01, FORM LOG-GHP-01, FORM LOG-BUF-01). NEVER leave the standalone word "Form" or "FORM" without its explicit log code.
     - Write all recommendations in clean, plain operational descriptions.
     ---
@@ -213,7 +241,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     - ONLY use **bold** text for section titles or headers.
     - DO NOT use inline bolding inside of paragraphs.
     - Use simple dashes (-) instead of em-dashes (-).
-    - DO NOT include square brackets [like this] anywhere in your output.
+    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3].
     
     Format the report STRICTLY with these sections exactly as named:
 
