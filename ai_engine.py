@@ -80,9 +80,10 @@ def read_company_standards(concept_folder, failed_items=None):
             current_file = ""
             total_chars = 0
             for filename, text in all_paragraphs:
-                if filename != current_file:
-                    current_file = filename
-                    full_standards.append(f"\n--- {filename} ---")
+                clean_fn = filename.replace('.docx', '').replace('.doc', '')
+                if clean_fn != current_file:
+                    current_file = clean_fn
+                    full_standards.append(f"\n--- {clean_fn} ---")
                 full_standards.append(text)
                 total_chars += len(text)
                 if total_chars > 25000:
@@ -127,13 +128,15 @@ def read_company_standards(concept_folder, failed_items=None):
                 top_results = torch.topk(cos_scores[i], k=top_k)
                 for idx in top_results[1]:
                     filename, text = all_paragraphs[idx.item()]
-                    scored_blocks.append((10, f"[{filename}] {text}")) # Assign high base semantic score
+                    clean_fn = filename.replace('.docx', '').replace('.doc', '')
+                    scored_blocks.append((10, f"[{clean_fn}] {text}")) # Assign high base semantic score
                     
         except ImportError:
             pass # Silently fallback to lexical keyword scoring if library is missing
 
         # 2. LEXICAL KEYWORD & FORM CODE SCORING
         for filename, text in all_paragraphs:
+            clean_fn = filename.replace('.docx', '').replace('.doc', '')
             text_lower = text.lower()
             score = 0
             
@@ -149,7 +152,7 @@ def read_company_standards(concept_folder, failed_items=None):
                 score += 1
 
             if score > 0:
-                scored_blocks.append((score, f"[{filename}] {text}"))
+                scored_blocks.append((score, f"[{clean_fn}] {text}"))
 
         # Remove duplicates while preserving highest score
         unique_blocks = {}
@@ -163,7 +166,7 @@ def read_company_standards(concept_folder, failed_items=None):
 
         if not final_scored_blocks:
             # Fallback: Top 50 general SOP paragraphs if keywords yield no hits
-            fallback_blocks = [f"[{fn}] {txt}" for fn, txt in all_paragraphs[:50]]
+            fallback_blocks = [f"[{fn.replace('.docx', '').replace('.doc', '')}] {txt}" for fn, txt in all_paragraphs[:50]]
             return "\n".join(fallback_blocks)
 
         # Accumulate relevant blocks up to a strict 20,000 character limit
@@ -266,6 +269,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     STRICT ANTI-HALLUCINATION RULES:
     - You may cite exact section or clause numbers (e.g., Section 5.3.1) ONLY IF they explicitly appear in the provided company standards. DO NOT invent, guess, or hallucinate fake section numbers.
     - Reference specific form codes cleanly as written in the standards (e.g., FORM LOG-DEV-01, FORM LOG-TEMP-01, FORM LOG-GHP-01, FORM LOG-BUF-01). NEVER leave the standalone word "Form" or "FORM" without its explicit log code.
+    - When citing a document, SOP, or PRP, you must include its descriptive title in parentheses if available (e.g., PRP 1.0 (Personal Hygiene)).
     - Write all recommendations in clean, plain operational descriptions.
     ---
     {company_standards}
@@ -277,7 +281,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     - ONLY use **bold** text for section titles or headers.
     - DO NOT use inline bolding inside of paragraphs.
     - Use simple dashes (-) instead of em-dashes (-).
-    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3].
+    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3] strictly inside the 3.2 Detailed Finding list. DO NOT use bracketed risk tags inside standard paragraphs (like the Administrative Breakdown).
     
     Format the report STRICTLY with these sections exactly as named:
 
