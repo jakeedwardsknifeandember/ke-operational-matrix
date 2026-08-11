@@ -3,6 +3,8 @@ import re
 import docx
 import google.generativeai as genai
 
+_semantic_model = None
+
 def extract_concept_only(name):
     """Strips store establishment name and extracts concept in parentheses."""
     if not name:
@@ -104,6 +106,33 @@ def read_company_standards(concept_folder, failed_items=None):
                         keywords.add(w[:4])
 
         scored_blocks = []
+
+        # 1. ATTEMPT SEMANTIC SEARCH (If sentence-transformers is installed)
+        try:
+            import torch
+            from sentence_transformers import SentenceTransformer, util
+            
+            global _semantic_model
+            if _semantic_model is None:
+                _semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+                
+            corpus = [text for _, text in all_paragraphs]
+            corpus_embeddings = _semantic_model.encode(corpus, convert_to_tensor=True)
+            query_embeddings = _semantic_model.encode(failed_items, convert_to_tensor=True)
+            
+            cos_scores = util.cos_sim(query_embeddings, corpus_embeddings)
+            top_k = min(5, len(corpus))
+            
+            for i in range(len(failed_items)):
+                top_results = torch.topk(cos_scores[i], k=top_k)
+                for idx in top_results[1]:
+                    filename, text = all_paragraphs[idx.item()]
+                    scored_blocks.append((10, f"[{filename}] {text}")) # Assign high base semantic score
+                    
+        except ImportError:
+            pass # Silently fallback to lexical keyword scoring if library is missing
+
+        # 2. LEXICAL KEYWORD & FORM CODE SCORING
         for filename, text in all_paragraphs:
             text_lower = text.lower()
             score = 0
@@ -122,10 +151,17 @@ def read_company_standards(concept_folder, failed_items=None):
             if score > 0:
                 scored_blocks.append((score, f"[{filename}] {text}"))
 
-        # Sort blocks by relevance score in descending order
-        scored_blocks.sort(key=lambda x: x[0], reverse=True)
+        # Remove duplicates while preserving highest score
+        unique_blocks = {}
+        for score, block in scored_blocks:
+            if block not in unique_blocks or score > unique_blocks[block]:
+                unique_blocks[block] = score
 
-        if not scored_blocks:
+        # Sort blocks by relevance score in descending order
+        final_scored_blocks = [(score, block) for block, score in unique_blocks.items()]
+        final_scored_blocks.sort(key=lambda x: x[0], reverse=True)
+
+        if not final_scored_blocks:
             # Fallback: Top 50 general SOP paragraphs if keywords yield no hits
             fallback_blocks = [f"[{fn}] {txt}" for fn, txt in all_paragraphs[:50]]
             return "\n".join(fallback_blocks)
@@ -133,7 +169,7 @@ def read_company_standards(concept_folder, failed_items=None):
         # Accumulate relevant blocks up to a strict 20,000 character limit
         selected_blocks = []
         char_count = 0
-        for score, block in scored_blocks:
+        for score, block in final_scored_blocks:
             selected_blocks.append(block)
             char_count += len(block)
             if char_count >= 20000:

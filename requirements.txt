@@ -9,3 +9,6 @@ Pillow
 numpy
 google-api-python-client
 google-auth
+sentence-transformers
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
