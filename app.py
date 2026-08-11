@@ -76,6 +76,8 @@ if 'cached_report_text' not in st.session_state:
     st.session_state.cached_report_text = ""
 if 'cached_score_data' not in st.session_state:
     st.session_state.cached_score_data = {}
+if 'saved_signature_data' not in st.session_state:
+    st.session_state.saved_signature_data = None
 
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
@@ -121,9 +123,13 @@ if st.session_state.logged_in:
     branch_name = st.sidebar.text_input("Branch / Location:", value=st.session_state.get('restored_branch_name', ""), placeholder="Enter store location")
     fsco_name = st.sidebar.text_input("Lead Auditor / FSCO:", value=st.session_state.get('restored_fsco_name', st.session_state.user_full_name))
     audit_date = st.sidebar.date_input("Audit Date:", datetime.date.today())
+    client_cc_email = st.sidebar.text_input("Client / Store Manager Email (CC):", value="", placeholder="manager@store.com")
     
     st.sidebar.markdown("---")
-    st.sidebar.info(f"Report Destination Email:\n`{PRIMARY_RECIPIENT_EMAIL}`")
+    email_info_text = f"Primary Recipient:\n`{PRIMARY_RECIPIENT_EMAIL}`"
+    if client_cc_email.strip():
+        email_info_text += f"\n\nStakeholder CC:\n`{client_cc_email.strip()}`"
+    st.sidebar.info(email_info_text)
 
     st.title("Operational Surveillance Suite")
     header_client_label = f"{establishment_name} - {branch_name}" if (establishment_name or branch_name) else "New Audit Inspection"
@@ -222,6 +228,13 @@ if st.session_state.logged_in:
         st.divider()
         st.subheader("Verification Sign-Off")
         canvas_result = st_canvas(fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, drawing_mode="freedraw", key="fsco_signature_canvas")
+        
+        # Lock signature canvas pixels into session state to prevent state loss on UI reruns
+        if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0):
+            st.session_state.saved_signature_data = canvas_result.image_data
+            
+        if st.session_state.get('saved_signature_data') is not None and np.any(st.session_state.saved_signature_data[:, :, 3] > 0):
+            st.caption("Signature captured and preserved in session memory.")
         st.divider()
 
         if st.button("Process Metrics & Generate Final Report", use_container_width=True):
@@ -273,8 +286,10 @@ if st.session_state.logged_in:
             st.write(st.session_state.cached_report_text)
 
             signature_saved = False
-            if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0):
-                raw_sketch = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+            sig_data_to_use = canvas_result.image_data if (canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0)) else st.session_state.get('saved_signature_data')
+            
+            if sig_data_to_use is not None and np.any(sig_data_to_use[:, :, 3] > 0):
+                raw_sketch = Image.fromarray(sig_data_to_use.astype('uint8'), 'RGBA')
                 rgb_signature = Image.new("RGB", raw_sketch.size, (255, 255, 255))
                 rgb_signature.paste(raw_sketch, mask=raw_sketch.split()[3])
                 rgb_signature.save("fsco_signature_temp.png", "PNG")
@@ -283,8 +298,9 @@ if st.session_state.logged_in:
             try:
                 pdf_filename = generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, scores, st.session_state.cached_report_text, uploaded_photos_data, signature_saved)
                 with st.spinner("Dispatching automated email..."):
-                    if auto_email_report(st, PRIMARY_RECIPIENT_EMAIL, pdf_filename, establishment_name, branch_name, scores['final_score'], scores['rating'].split()[0]):
-                        st.success(f"Report dispatched to `{PRIMARY_RECIPIENT_EMAIL}`")
+                    if auto_email_report(st, PRIMARY_RECIPIENT_EMAIL, pdf_filename, establishment_name, branch_name, scores['final_score'], scores['rating'].split()[0], cc_email=client_cc_email):
+                        disp_cc = f" (CC: `{client_cc_email.strip()}`)" if client_cc_email.strip() else ""
+                        st.success(f"Report dispatched to `{PRIMARY_RECIPIENT_EMAIL}`{disp_cc}")
                 if os.path.exists(pdf_filename): os.remove(pdf_filename)
             except Exception as e:
                 st.error(f"PDF Delivery Error: {e}")

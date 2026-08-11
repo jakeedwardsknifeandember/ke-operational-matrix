@@ -125,7 +125,8 @@ def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, bra
     except Exception as e:
         return f"Historical data unavailable for {full_label} due to database error: {e}"
 
-def auto_email_report(st, recipient_email, pdf_path, client_name, branch_name, score, status):
+def auto_email_report(st, recipient_email, pdf_path, client_name, branch_name, score, status, cc_email=None):
+    """Dispatches automated email report with optional stakeholder CC recipient."""
     smtp_user = get_secret(st, "smtp_username")
     smtp_server_val = get_secret(st, "smtp_server")
     smtp_port_val = get_secret(st, "smtp_port")
@@ -139,6 +140,10 @@ def auto_email_report(st, recipient_email, pdf_path, client_name, branch_name, s
         msg = MIMEMultipart()
         msg['From'] = f"Knife & Ember <{smtp_user}>"
         msg['To'] = recipient_email
+        
+        if cc_email and str(cc_email).strip():
+            msg['Cc'] = str(cc_email).strip()
+            
         full_title = f"{client_name} - {branch_name}" if branch_name else client_name
         msg['Subject'] = f"Food Safety Audit Report: {full_title} - {score:.2f}% ({status})"
         

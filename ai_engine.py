@@ -2,8 +2,16 @@ import os
 import re
 import docx
 import google.generativeai as genai
+import streamlit as st
 
-_semantic_model = None
+@st.cache_resource(show_spinner=False)
+def _get_semantic_model():
+    """Loads and caches the SentenceTransformer model in memory via Streamlit resource caching."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        return SentenceTransformer('all-MiniLM-L6-v2')
+    except Exception:
+        return None
 
 def extract_concept_only(name):
     """Strips store establishment name and extracts concept in parentheses."""
@@ -108,31 +116,29 @@ def read_company_standards(concept_folder, failed_items=None):
 
         scored_blocks = []
 
-        # 1. ATTEMPT SEMANTIC SEARCH (If sentence-transformers is installed)
+        # 1. ATTEMPT SEMANTIC SEARCH WITH CACHED MODEL
         try:
             import torch
-            from sentence_transformers import SentenceTransformer, util
+            from sentence_transformers import util
             
-            global _semantic_model
-            if _semantic_model is None:
-                _semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+            semantic_model = _get_semantic_model()
+            if semantic_model is not None:
+                corpus = [text for _, text in all_paragraphs]
+                corpus_embeddings = semantic_model.encode(corpus, convert_to_tensor=True)
+                query_embeddings = semantic_model.encode(failed_items, convert_to_tensor=True)
                 
-            corpus = [text for _, text in all_paragraphs]
-            corpus_embeddings = _semantic_model.encode(corpus, convert_to_tensor=True)
-            query_embeddings = _semantic_model.encode(failed_items, convert_to_tensor=True)
-            
-            cos_scores = util.cos_sim(query_embeddings, corpus_embeddings)
-            top_k = min(5, len(corpus))
-            
-            for i in range(len(failed_items)):
-                top_results = torch.topk(cos_scores[i], k=top_k)
-                for idx in top_results[1]:
-                    filename, text = all_paragraphs[idx.item()]
-                    clean_fn = filename.replace('.docx', '').replace('.doc', '')
-                    scored_blocks.append((10, f"[{clean_fn}] {text}")) # Assign high base semantic score
+                cos_scores = util.cos_sim(query_embeddings, corpus_embeddings)
+                top_k = min(5, len(corpus))
+                
+                for i in range(len(failed_items)):
+                    top_results = torch.topk(cos_scores[i], k=top_k)
+                    for idx in top_results[1]:
+                        filename, text = all_paragraphs[idx.item()]
+                        clean_fn = filename.replace('.docx', '').replace('.doc', '')
+                        scored_blocks.append((10, f"[{clean_fn}] {text}")) # Assign high base semantic score
                     
-        except ImportError:
-            pass # Silently fallback to lexical keyword scoring if library is missing
+        except Exception:
+            pass # Silently fallback to lexical keyword scoring if library is missing or fails
 
         # 2. LEXICAL KEYWORD & FORM CODE SCORING
         for filename, text in all_paragraphs:
