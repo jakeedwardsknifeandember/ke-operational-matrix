@@ -1,0 +1,15 @@
+{
+  "admin": {
+    "password": "1amsucc3ss",
+    "role": "admin",
+    "full_name": "Jake-Edwards L. Yboa"
+  },
+  "test": {
+    "password": "1234",
+    "role": "auditor",
+    "full_name": "test",
+    "assigned_concepts": [
+      "Tata's Chicks (Fried Chicken & Fast Casual)"
+    ]
+  }
+}
