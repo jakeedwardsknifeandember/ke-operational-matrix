@@ -254,7 +254,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     **6. Historical Progress Summary**
     Data:
     [{progress_context}]
-    Provide a portfolio-level 1-2 sentence commentary on the facility's compliance trajectory based on the provided data.
+    Provide a portfolio-level 1-2 sentence commentary on the facility's compliance trajectory based on the provided data. You MUST refer to the store strictly by its full label "{client_label}" (e.g. "Tata's Chicks - Makati") instead of shorthand phrases like "the facility" or "the branch".
 
     **7. Auditor Notes & Recommendations**
     Direct observations and suggestions provided by the Lead Auditor:

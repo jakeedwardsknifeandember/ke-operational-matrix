@@ -79,9 +79,11 @@ def clear_audit_draft():
             pass
 
 def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, branch_name, audit_date, final_score, deductions, failed_items):
-    """Logs numerical row to Google Sheets and calculates previous baseline trend."""
+    """Logs numerical row to Google Sheets and calculates previous baseline trend using complete client label."""
+    full_label = f"{establishment_name} - {branch_name}" if (establishment_name and branch_name) else (establishment_name or branch_name or "Store")
+    
     if gc is None:
-        return "Historical data unavailable (Database connection unconfigured)."
+        return f"Historical data unavailable for {full_label} (Database connection unconfigured)."
         
     try:
         sheet = gc.open(active_sheet_name).sheet1
@@ -106,9 +108,9 @@ def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, bra
         if previous_score is not None:
             diff = final_score - previous_score
             trend = f"Improved by {diff:.2f}%" if diff > 0 else (f"Declined by {abs(diff):.2f}%" if diff < 0 else "Unchanged")
-            progress_context = f"Previous Audit Score ({branch_name}): {previous_score:.2f}% | Current Score: {final_score:.2f}% | Trajectory: {trend}"
+            progress_context = f"Previous Audit Score ({full_label}): {previous_score:.2f}% | Current Score: {final_score:.2f}% | Trajectory: {trend}"
         else:
-            progress_context = f"No previous historical data found for {branch_name}. This is the baseline audit."
+            progress_context = f"No previous historical data found for {full_label}. This is the baseline audit."
             
         violations_text = " | ".join(failed_items) if failed_items else "No violations found."
         sheet.append_row([
@@ -121,7 +123,7 @@ def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, bra
         ])
         return progress_context
     except Exception as e:
-        return f"Historical data unavailable due to database error: {e}"
+        return f"Historical data unavailable for {full_label} due to database error: {e}"
 
 def auto_email_report(st, recipient_email, pdf_path, client_name, branch_name, score, status):
     smtp_user = get_secret(st, "smtp_username")
