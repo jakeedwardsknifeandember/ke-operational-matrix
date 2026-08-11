@@ -12,19 +12,30 @@ def extract_concept_only(name):
     return name.strip()
 
 def sanitize_ai_output(text):
-    """Strips fake section numbers and clause codes while preserving form codes and newlines."""
+    """Strips fake section numbers, replaces 'deg' with '°', and auto-fills missing log form codes."""
     if not text:
         return ""
     text = re.sub(r'\bSection\s+\d+(?:\.\d+)*\b', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\bClause\s+\d+(?:\.\d+)*\b', '', text, flags=re.IGNORECASE)
     
-    # Preserve newlines (\n) by only cleaning horizontal spaces and tabs
+    # Auto-convert 'deg F' / 'deg C' / 'deg' to standard degree symbols '°F' / '°C' / '°'
+    text = re.sub(r'\bdeg\s*([FC])\b', r'°\1', text, flags=re.IGNORECASE)
+    text = re.sub(r'\bdeg\b', '°', text, flags=re.IGNORECASE)
+    
+    # Replace isolated 'Form' or 'FORM' references without codes with explicit default log codes
+    text = re.sub(r'\b(using|in|on)\s+Form\b(?!\s+LOG-)', r'\1 FORM LOG-DEV-01', text, flags=re.IGNORECASE)
+    text = re.sub(r'\bForm\.\b', 'FORM LOG-DEV-01.', text)
+    
+    # Clean horizontal spaces without stripping newlines (\n)
     text = re.sub(r'[ \t]{2,}', ' ', text)
     text = re.sub(r'[ \t]+([.,;:!\?])', r'\1', text)
     return text.strip()
 
 def read_company_standards(concept_folder, failed_items=None):
-    """Scans all docx files in standards/<concept_folder>/."""
+    """
+    Recursively scans standards/<concept_folder>/ (handling both flat and nested structures),
+    excludes non-SOP folders like 'Audit Reports', and performs fuzzy/stemmed relevance ranking.
+    """
     target_path = os.path.join("standards", concept_folder)
     
     if os.path.exists(target_path) and os.path.isdir(target_path):
@@ -34,58 +45,101 @@ def read_company_standards(concept_folder, failed_items=None):
     else:
         return "WARNING: No standards directory found for this establishment."
 
+    # Directories to ignore during RAG scanning
+    EXCLUDED_DIRS = {"audit reports", "audit_reports", "temp", "tmp", "old"}
+
     try:
         found_docs = False
         all_paragraphs = []
 
         for root, dirs, files in os.walk(scan_folder):
+            # Exclude non-standard directories dynamically
+            dirs[:] = [d for d in dirs if d.lower() not in EXCLUDED_DIRS]
+            
             for filename in files:
-                if filename.endswith(".docx"):
+                if filename.endswith(".docx") and not filename.startswith("~$"):
                     found_docs = True
                     doc_path = os.path.join(root, filename)
-                    doc = docx.Document(doc_path)
-                    for p in doc.paragraphs:
-                        text = p.text.strip()
-                        if text:
-                            all_paragraphs.append((filename, text))
+                    try:
+                        doc = docx.Document(doc_path)
+                        for p in doc.paragraphs:
+                            text = p.text.strip()
+                            if len(text) > 10:  # Skip empty or trivial lines
+                                all_paragraphs.append((filename, text))
+                    except Exception:
+                        continue
         
         if not found_docs:
-            return f"WARNING: No .docx SOP files found in '{scan_folder}'."
+            return f"WARNING: No active .docx SOP files found in '{scan_folder}'."
 
         if not failed_items:
-            full_standards = ""
+            # Full dump if no failures are provided (capped at 25,000 chars)
+            full_standards = []
             current_file = ""
+            total_chars = 0
             for filename, text in all_paragraphs:
                 if filename != current_file:
                     current_file = filename
-                    full_standards += f"\n--- {filename} ---\n"
-                full_standards += text + "\n"
-            return full_standards
+                    full_standards.append(f"\n--- {filename} ---")
+                full_standards.append(text)
+                total_chars += len(text)
+                if total_chars > 25000:
+                    break
+            return "\n".join(full_standards)
 
+        # Build stem/keyword dictionary for robust searching
         keywords = set()
-        stopwords = {"the", "and", "for", "with", "that", "this", "from", "have", "were", "been", "none", "notes", "custom", "finding", "l1", "l2", "l3"}
+        stopwords = {
+            "the", "and", "for", "with", "that", "this", "from", "have", "were", "been", 
+            "none", "notes", "custom", "finding", "l1", "l2", "l3", "item", "failed", "check"
+        }
+        
         for item in failed_items:
             words = [w.lower().strip(".,()[]:;\"'-") for w in item.split()]
-            meaningful = [w for w in words if len(w) > 2 and w not in stopwords]
-            keywords.update(meaningful)
+            for w in words:
+                if len(w) > 2 and w not in stopwords:
+                    keywords.add(w)
+                    # Add partial stems for custom findings (e.g., 'flooring' -> 'floor')
+                    if len(w) > 4:
+                        keywords.add(w[:4])
 
-        relevant_blocks = []
+        scored_blocks = []
         for filename, text in all_paragraphs:
             text_lower = text.lower()
-            if any(kw in text_lower for kw in keywords) or "form" in text_lower or "log-" in text_lower:
-                relevant_blocks.append(f"[{filename}] {text}")
+            score = 0
+            
+            # Score matches based on keyword presence
+            for kw in keywords:
+                if kw in text_lower:
+                    score += 1
+            
+            # Boost score for structural form codes and mandatory log definitions
+            if "log-" in text_lower or "form" in text_lower:
+                score += 2
+            if "prp" in text_lower or "sop" in text_lower:
+                score += 1
 
-        if not relevant_blocks:
-            full_standards = ""
-            current_file = ""
-            for filename, text in all_paragraphs:
-                if filename != current_file:
-                    current_file = filename
-                    full_standards += f"\n--- {filename} ---\n"
-                full_standards += text + "\n"
-            return full_standards
+            if score > 0:
+                scored_blocks.append((score, f"[{filename}] {text}"))
 
-        return "\n".join(relevant_blocks)
+        # Sort blocks by relevance score in descending order
+        scored_blocks.sort(key=lambda x: x[0], reverse=True)
+
+        if not scored_blocks:
+            # Fallback: Top 50 general SOP paragraphs if keywords yield no hits
+            fallback_blocks = [f"[{fn}] {txt}" for fn, txt in all_paragraphs[:50]]
+            return "\n".join(fallback_blocks)
+
+        # Accumulate relevant blocks up to a strict 20,000 character limit
+        selected_blocks = []
+        char_count = 0
+        for score, block in scored_blocks:
+            selected_blocks.append(block)
+            char_count += len(block)
+            if char_count >= 20000:
+                break
+
+        return "\n".join(selected_blocks)
             
     except Exception as e:
         return f"WARNING: Could not read standards folder. Error: {e}"
