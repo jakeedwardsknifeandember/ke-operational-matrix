@@ -187,13 +187,14 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
             line = line.strip()
             if not line:
                 continue
-                
-            if line.startswith("3.2") or "Detailed Finding" in line:
-                pdf.add_page()
-                
+            
+            # Filter out redundant isolated table text line to avoid orphan text paragraphs
+            if "see quantitative table below" in line.lower():
+                continue
+
             is_main_header = any(re.search(re.escape(title), line, re.IGNORECASE) for title in MAIN_SECTION_KEYWORDS)
             
-            # 4.1 Grey Banner Section Headers (Prevent orphans by breaking at 245mm)
+            # 4.1 Grey Banner Section Headers (Dynamic break only when exceeding printable margin)
             if is_main_header:
                 if pdf.get_y() > 245:
                     pdf.add_page()
@@ -314,11 +315,28 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                     pdf.multi_cell(0, 5, txt=line)
                     pdf.ln(2)
 
-        # 5. Photographic Evidence Annex (With page bleed prediction)
+        # 5. Photographic Evidence Annex (With look-ahead header protection)
         if uploaded_photos_data:
-            if pdf.get_y() > 190:
+            col_x_positions = [12, 105]
+            col_width = 83
+
+            # Calculate height of first row upfront to prevent orphaned Section 8 banner
+            first_pair = uploaded_photos_data[0:2]
+            max_first_calc_h = 0
+            for photo_item in first_pair:
+                try:
+                    with Image.open(photo_item["file"]) as img:
+                        img_w, img_h = img.size
+                        calc_h = col_width * (img_h / img_w)
+                        if calc_h > max_first_calc_h:
+                            max_first_calc_h = calc_h
+                except Exception:
+                    max_first_calc_h = 50
+
+            # If Banner (15mm) + First Row of Images will overflow printable boundary, move header to next page
+            if pdf.get_y() + 15 + max_first_calc_h > 270:
                 pdf.add_page()
-            
+
             pdf.ln(4)
             current_y = pdf.get_y()
             pdf.set_fill_color(240, 240, 240)
@@ -327,9 +345,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
             pdf.set_text_color(0, 0, 0)
             pdf.cell(0, 8, txt="8. Photographic Evidence Log", ln=True, fill=True)
             pdf.ln(4)
-
-            col_x_positions = [12, 105]
-            col_width = 83
 
             for p_pair_idx in range(0, len(uploaded_photos_data), 2):
                 pair = uploaded_photos_data[p_pair_idx:p_pair_idx+2]
