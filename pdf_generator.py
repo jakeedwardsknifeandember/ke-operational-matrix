@@ -4,10 +4,34 @@ import re
 from fpdf import FPDF
 from PIL import Image
 
-def clean_unicode_text(text):
-    """Converts special symbols and unicode characters to ASCII/Latin-1 for FPDF."""
+def remove_emojis(text):
+    """Strips all emoji characters and non-text pictographs."""
     if not text:
         return ""
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # Emoticons
+        "\U0001F300-\U0001F5FF"  # Symbols & Pictographs
+        "\U0001F680-\U0001F6FF"  # Transport & Map
+        "\U0001F1E0-\U0001F1FF"  # Flags
+        "\U00002702-\U000027B0"  # Dingbats
+        "\U000024C2-\U0001F251"
+        "\U0001F900-\U0001F9FF"  # Supplemental Symbols
+        "\U0001FA00-\U0001FA6F"  # Chess Symbols
+        "\U0001FA70-\U0001FAFF"  # Symbols Extended-A
+        "\U00002600-\U000026FF"  # Misc Symbols
+        "]+",
+        flags=re.UNICODE
+    )
+    return emoji_pattern.sub(r"", str(text))
+
+def clean_unicode_text(text):
+    """Sanitizes special symbols, smart quotes, curly apostrophes, and unicode characters for Latin-1 FPDF."""
+    if not text:
+        return ""
+    
+    text = remove_emojis(str(text))
+    
     replacements = {
         '\u2014': '-',
         '\u2013': '-',
@@ -15,18 +39,30 @@ def clean_unicode_text(text):
         '\u201d': '"',
         '\u2018': "'",
         '\u2019': "'",
+        '’': "'",
+        '‘': "'",
+        '“': '"',
+        '”': '"',
+        '•': '*',
         '\u2022': '*',
         '\u2026': '...',
         '\u2264': '<=',
         '\u2265': '>=',
-        '\u00b0': '\xb0',  # Unicode degree
-        '°': '\xb0'        # Direct symbol fallback
+        '≤': '<=',
+        '≥': '>=',
+        '\u00b0': '\xb0',
+        '°': '\xb0',
+        '\u00a0': ' ',  # Non-breaking space
+        '\u200b': '',   # Zero-width space
     }
+    
     for original, replacement in replacements.items():
         text = text.replace(original, replacement)
     
-    # Remove inline LaTeX $...$
+    # Remove inline LaTeX notation
     text = re.sub(r'\$([^\$]+)\$', r'\1', text)
+    
+    # Guarantee clean Latin-1 encoding
     return text.encode('latin-1', 'replace').decode('latin-1')
 
 def preprocess_report_text(raw_text):
@@ -36,12 +72,12 @@ def preprocess_report_text(raw_text):
 
     text = raw_text
 
-    # Forcefully convert 'deg' text into real degree symbols
+    # Auto-convert 'deg' notations into degree symbols
     text = re.sub(r'(?i)\bdeg\s*F\b', '°F', text)
     text = re.sub(r'(?i)\bdeg\s*C\b', '°C', text)
     text = re.sub(r'(?i)\bdeg\b', '°', text)
 
-    # Force FSMS Administration: Changelog onto a single unified line so the Grey Banner parser detects it
+    # Standardize grey banner section headers
     text = re.sub(r'2\.\s*FSMS Administration\s*\n*\s*:\s*Changelog', '2. FSMS Administration: Changelog', text, flags=re.IGNORECASE)
 
     main_headers = [
@@ -88,6 +124,12 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
     
     temp_image_files = []
     
+    # Pre-clean all incoming metadata to prevent standard-font encoding errors
+    clean_est_name = clean_unicode_text(establishment_name)
+    clean_br_name = clean_unicode_text(branch_name)
+    clean_auditor_name = clean_unicode_text(fsco_name)
+    clean_date = clean_unicode_text(audit_date)
+
     try:
         # 1. Header Logo Auto-Detection
         logo_path = None
@@ -109,22 +151,22 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
         pdf.set_font("Times", 'B', 10)
         pdf.cell(42, 5, "Establishment Name:", ln=False)
         pdf.set_font("Times", '', 10)
-        pdf.cell(0, 5, f"{establishment_name}", ln=True)
+        pdf.cell(0, 5, f"{clean_est_name}", ln=True)
 
         pdf.set_font("Times", 'B', 10)
         pdf.cell(42, 5, "Branch/Location:", ln=False)
         pdf.set_font("Times", '', 10)
-        pdf.cell(0, 5, f"{branch_name}", ln=True)
+        pdf.cell(0, 5, f"{clean_br_name}", ln=True)
         
         pdf.set_font("Times", 'B', 10)
         pdf.cell(42, 5, "Lead Auditor/FSCO:", ln=False)
         pdf.set_font("Times", '', 10)
-        pdf.cell(0, 5, f"{fsco_name}", ln=True)
+        pdf.cell(0, 5, f"{clean_auditor_name}", ln=True)
         
         pdf.set_font("Times", 'B', 10)
         pdf.cell(42, 5, "Audit Operation Date:", ln=False)
         pdf.set_font("Times", '', 10)
-        pdf.cell(0, 5, f"{audit_date}", ln=True)
+        pdf.cell(0, 5, f"{clean_date}", ln=True)
         pdf.ln(5)
 
         # 3. Visual Score Badge Banner
@@ -184,17 +226,17 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
 
         lines = safe_text.split('\n')
         for line in lines:
-            line = line.strip()
+            line = clean_unicode_text(line.strip())
             if not line:
                 continue
             
-            # Filter out redundant isolated table text line to avoid orphan text paragraphs
+            # Suppress redundant inline table text
             if "see quantitative table below" in line.lower():
                 continue
 
             is_main_header = any(re.search(re.escape(title), line, re.IGNORECASE) for title in MAIN_SECTION_KEYWORDS)
             
-            # 4.1 Grey Banner Section Headers (Dynamic break only when exceeding printable margin)
+            # 4.1 Grey Banner Section Headers
             if is_main_header:
                 if pdf.get_y() > 245:
                     pdf.add_page()
@@ -249,7 +291,7 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                     pdf.cell(50, 7, f"-{scores.get('deductions', 0)} pts", border=1, align='C', fill=True, ln=True)
                     pdf.ln(4)
 
-            # 4.2 CAPA Issue Headers (Prevent orphans by breaking at 255mm)
+            # 4.2 CAPA Issue Headers
             elif re.match(r'^\d+\.\s*Issue:', line, re.IGNORECASE) or line.startswith("Issue "):
                 if pdf.get_y() > 255:
                     pdf.add_page()
@@ -285,42 +327,36 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                     pdf.multi_cell(0, 5, txt=body_val)
                 pdf.ln(2)
 
-            # 4.4 Regular Body Paragraphs and Inline Colored Bullet Points
+            # 4.4 Regular Body Paragraphs & Colored Risk Badges
             else:
                 pdf.set_font("Times", '', 10)
-                
-                # Extract just the tag (e.g., "- [L1]") to color it, keeping the rest black
                 match = re.match(r'^(\s*-?\s*\[L([123])\])(.*)', line)
                 if match:
                     tag_str = match.group(1)
                     level = match.group(2)
                     body_str = match.group(3)
                     
-                    # Set specific tag color
                     if level == '1':
                         pdf.set_text_color(220, 53, 69)   # Red
                     elif level == '2':
-                        pdf.set_text_color(204, 153, 0)   # Dark Yellow / Amber
+                        pdf.set_text_color(204, 153, 0)   # Amber
                     elif level == '3':
                         pdf.set_text_color(40, 167, 69)   # Green
                     
                     pdf.write(5, tag_str + " ")
-                    
-                    # Reset to black for the description text
                     pdf.set_text_color(0, 0, 0)
                     pdf.write(5, body_str)
-                    pdf.ln(7) # Move cursor down and add standard spacing
+                    pdf.ln(7)
                 else:
                     pdf.set_text_color(0, 0, 0)
                     pdf.multi_cell(0, 5, txt=line)
                     pdf.ln(2)
 
-        # 5. Photographic Evidence Annex (With look-ahead header protection)
+        # 5. Photographic Evidence Annex (With Look-Ahead Header Protection)
         if uploaded_photos_data:
             col_x_positions = [12, 105]
             col_width = 83
 
-            # Calculate height of first row upfront to prevent orphaned Section 8 banner
             first_pair = uploaded_photos_data[0:2]
             max_first_calc_h = 0
             for photo_item in first_pair:
@@ -333,7 +369,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                 except Exception:
                     max_first_calc_h = 50
 
-            # If Banner (15mm) + First Row of Images will overflow printable boundary, move header to next page
             if pdf.get_y() + 15 + max_first_calc_h > 270:
                 pdf.add_page()
 
@@ -348,8 +383,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
 
             for p_pair_idx in range(0, len(uploaded_photos_data), 2):
                 pair = uploaded_photos_data[p_pair_idx:p_pair_idx+2]
-                
-                # Pre-calculate required height for this row to prevent page bleed
                 row_images_data = []
                 max_calc_h = 0
                 
@@ -366,14 +399,18 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                         if calc_h > max_calc_h:
                             max_calc_h = calc_h
                             
+                        # Clean and strip emojis strictly from photo caption
+                        raw_caption = photo_item.get("caption", "")
+                        clean_caption_text = clean_unicode_text(remove_emojis(raw_caption))
+                        
                         row_images_data.append({
                             "tmp_path": tmp_path,
-                            "caption": photo_item["caption"],
+                            "caption": clean_caption_text,
                             "calc_h": calc_h,
                             "x_pos": col_x_positions[c_offset]
                         })
                 
-                # Predict bottom y. Caption (~8mm) + Image height (max_calc_h) + Spacing
+                # Check page overflow before drawing
                 if pdf.get_y() + max_calc_h + 15 > 275:
                     pdf.add_page()
                     
@@ -389,7 +426,7 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                     pdf.set_xy(x_pos, row_start_y)
                     pdf.set_font("Times", 'B', 9)
                     pdf.set_text_color(0, 0, 0)
-                    pdf.multi_cell(col_width, 4, txt=clean_unicode_text(f"Exhibit 8.{p_pair_idx + c_offset + 1}: {cap_text}"))
+                    pdf.multi_cell(col_width, 4, txt=f"Exhibit 8.{p_pair_idx + c_offset + 1}: {cap_text}")
                     caption_end_y = pdf.get_y() + 1
                     
                     pdf.image(tmp_path, x=x_pos, y=caption_end_y, w=col_width)
@@ -400,7 +437,7 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                         
                 pdf.set_y(max_row_bottom_y)
 
-        # 6. Signature Block
+        # 6. Verification Signature Block
         if signature_saved and os.path.exists("fsco_signature_temp.png"):
             if pdf.get_y() > 210:
                 pdf.add_page()
@@ -413,19 +450,19 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
             pdf.image("fsco_signature_temp.png", x=12, w=55)
             pdf.ln(2)
             pdf.set_font("Times", '', 9)
-            pdf.cell(0, 4, txt=f"{fsco_name} | Certified Food Safety Officer", ln=True)
+            pdf.cell(0, 4, txt=f"{clean_auditor_name} | Certified Food Safety Officer", ln=True)
             pdf.cell(0, 4, txt="Knife & Ember Food Consultancy Services", ln=True)
             os.remove("fsco_signature_temp.png") 
 
-        safe_est = "".join(c for c in establishment_name if c.isalnum() or c in (' ', '_', '-')).strip() if establishment_name else "Audit_Report"
-        safe_br = "".join(c for c in branch_name if c.isalnum() or c in (' ', '_', '-')).strip()
-        pdf_filename = f"{safe_est} ({safe_br}) - Executive Summary Report - {audit_date}.pdf" if safe_br else f"{safe_est} - Executive Summary Report - {audit_date}.pdf"
+        safe_est = "".join(c for c in clean_est_name if c.isalnum() or c in (' ', '_', '-')).strip() if clean_est_name else "Audit_Report"
+        safe_br = "".join(c for c in clean_br_name if c.isalnum() or c in (' ', '_', '-')).strip()
+        pdf_filename = f"{safe_est} ({safe_br}) - Executive Summary Report - {clean_date}.pdf" if safe_br else f"{safe_est} - Executive Summary Report - {clean_date}.pdf"
 
         pdf.output(pdf_filename)
         return pdf_filename
 
     finally:
-        # Guarantee all temporary physical photos are cleanly wiped from the server disk
+        # Guarantee all temporary photos are wiped from disk
         for tmp_img in temp_image_files:
             if os.path.exists(tmp_img):
                 try:
