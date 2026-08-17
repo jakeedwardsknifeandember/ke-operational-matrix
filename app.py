@@ -58,8 +58,10 @@ CHECKLIST_LIBRARY = load_all_checklists()
 # --- APP MEMORY SHIELD ---
 if 'custom_findings' not in st.session_state:
     st.session_state.custom_findings = [{"note": "", "level": "None (No deduction)", "changelog": False}]
-if 'photo_evidence' not in st.session_state:
-    st.session_state.photo_evidence = []
+if 'camera_snaps' not in st.session_state:
+    st.session_state.camera_snaps = []
+if 'bulk_captions' not in st.session_state:
+    st.session_state.bulk_captions = {}
 if 'restored_module_states' not in st.session_state:
     st.session_state.restored_module_states = {}
 if 'logged_in' not in st.session_state:
@@ -82,8 +84,8 @@ if 'saved_signature_data' not in st.session_state:
 def add_custom_finding():
     st.session_state.custom_findings.append({"note": "", "level": "None (No deduction)", "changelog": False})
 
-def add_photo_slot():
-    st.session_state.photo_evidence.append({"caption": "", "file": None})
+def add_camera_slot():
+    st.session_state.camera_snaps.append({"caption": "", "file": None})
 
 # ==========================================
 # GATEKEEPER LOGIN
@@ -187,18 +189,45 @@ if st.session_state.logged_in:
         st.divider()
 
         st.subheader("On-Site Photo Evidence Vault")
-        if not st.session_state.photo_evidence: st.session_state.photo_evidence = [{"caption": "", "file": None}]
         uploaded_photos_data = []
-        for p_idx, photo_item in enumerate(st.session_state.photo_evidence):
-            p_col1, p_col2 = st.columns([3, 2])
-            with p_col1:
-                input_mode = st.radio(f"Photo #{p_idx+1}:", ["File Upload", "Camera Snap"], horizontal=True, key=f"photo_src_{p_idx}")
-                u_file = st.camera_input(f"Snap #{p_idx+1}", key=f"cam_{p_idx}") if input_mode == "Camera Snap" else st.file_uploader(f"Upload #{p_idx+1}", type=["jpg", "png"], key=f"photo_upload_{p_idx}")
-            with p_col2:
-                caption = st.text_input(f"Caption #{p_idx+1}", value=photo_item.get("caption", ""), key=f"photo_cap_{p_idx}")
-            if u_file: uploaded_photos_data.append({"file": u_file, "caption": caption})
 
-        st.button("Add Photo Slot", on_click=add_photo_slot)
+        # 1. Bulk File Uploader (Supports .jpg, .jpeg, .png, .jfif, .webp)
+        bulk_files = st.file_uploader(
+            "Bulk Upload Photos (Select or drag multiple images):",
+            type=["jpg", "jpeg", "png", "jfif", "webp"],
+            accept_multiple_files=True,
+            key="bulk_evidence_uploader"
+        )
+
+        if bulk_files:
+            st.markdown(f"**Loaded {len(bulk_files)} Photo(s) for Report:**")
+            for b_idx, b_file in enumerate(bulk_files):
+                f_key = f"{b_file.name}_{b_file.size}"
+                default_cap = st.session_state.bulk_captions.get(f_key, b_file.name.rsplit(".", 1)[0].replace("_", " ").replace("-", " "))
+                
+                b_col1, b_col2 = st.columns([1, 3])
+                with b_col1:
+                    st.image(b_file, width=120)
+                with b_col2:
+                    caption_val = st.text_input(f"Caption for Photo #{b_idx+1}:", value=default_cap, key=f"cap_bulk_{b_idx}")
+                    st.session_state.bulk_captions[f_key] = caption_val
+                    
+                uploaded_photos_data.append({"file": b_file, "caption": caption_val})
+
+        st.markdown("---")
+        st.markdown("**Direct Camera Snap Evidence:**")
+        
+        # 2. Camera Snaps for Live On-Site Audits
+        for c_idx, snap_item in enumerate(st.session_state.camera_snaps):
+            c_col1, c_col2 = st.columns([3, 2])
+            with c_col1:
+                cam_file = st.camera_input(f"Live Camera Snap #{c_idx+1}", key=f"cam_live_{c_idx}")
+            with c_col2:
+                cam_caption = st.text_input(f"Snap Caption #{c_idx+1}", value=snap_item.get("caption", ""), key=f"cam_cap_{c_idx}")
+            if cam_file:
+                uploaded_photos_data.append({"file": cam_file, "caption": cam_caption})
+
+        st.button("Add Camera Snap Slot", on_click=add_camera_slot)
         st.divider()
 
         auditor_notes = st.text_area("Auditor Notes:", value=st.session_state.get('restored_notes', ""), height=110, key="auditor_notes_field")
@@ -365,4 +394,4 @@ if st.session_state.logged_in:
                         st.toast(f"Revoked: {target_revoke}")
                         st.rerun()
 
-    st.sidebar.button("End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, user_role=None, user_full_name="Jake-Edwards L. Yboa", assigned_concepts=["ALL"], report_generated=False, cached_report_text="") or st.rerun(), use_container_width=True)
+    st.sidebar.button("End Session (Log Out)", on_click=lambda: st.session_state.update(logged_in=False, user_role=None, user_full_name="Jake-Edwards L. Yboa", assigned_concepts=["ALL"], report_generated=False, cached_report_text=""), use_container_width=True)
