@@ -95,7 +95,7 @@ def read_company_standards(concept_folder, failed_items=None):
                     break
             return "\n".join(full_standards)
 
-        # Build stem/keyword dictionary for robust searching
+        # Build stem/keyword dictionary for searching
         keywords = set()
         stopwords = {
             "the", "and", "for", "with", "that", "this", "from", "have", "were", "been", 
@@ -112,7 +112,7 @@ def read_company_standards(concept_folder, failed_items=None):
 
         scored_blocks = []
 
-        # 1. ATTEMPT SEMANTIC SEARCH WITH CACHED MODEL
+        # 1. Semantic search with cached model
         try:
             import torch
             from sentence_transformers import util
@@ -136,7 +136,7 @@ def read_company_standards(concept_folder, failed_items=None):
         except Exception:
             pass
 
-        # 2. LEXICAL KEYWORD & FORM CODE SCORING
+        # 2. Lexical keyword & form code scoring
         for filename, text in all_paragraphs:
             clean_fn = filename.replace('.docx', '').replace('.doc', '')
             text_lower = text.lower()
@@ -181,8 +181,8 @@ def read_company_standards(concept_folder, failed_items=None):
 
 def generate_gemini_response(api_key_input, prompt_text):
     """
-    Executes prompt via Gemini API with Multi-Key and Multi-Model Failover.
-    Attempts all stable high-quota models across all provided keys before raising an exception.
+    Executes prompt via Gemini API with Dynamic Model Discovery and Multi-Key Failover.
+    Discovers available models dynamically from Google AI Studio and automatically handles failovers.
     """
     if not api_key_input:
         raise Exception("No Gemini API keys provided to execution engine.")
@@ -205,22 +205,49 @@ def generate_gemini_response(api_key_input, prompt_text):
     if not clean_keys:
         raise Exception("No valid Gemini API key strings extracted from configuration.")
 
-    production_models = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-2.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-1.5-pro',
-        'gemini-2.0-flash-lite'
-    ]
-
     last_error = None
 
     for key_idx, current_key in enumerate(clean_keys):
         try:
             genai.configure(api_key=current_key)
             
-            for model_name in production_models:
+            # Dynamically query available models directly from Google
+            available_models = []
+            try:
+                for m in genai.list_models():
+                    if 'generateContent' in getattr(m, 'supported_generation_methods', []):
+                        m_name = m.name.replace('models/', '').strip()
+                        if not any(bad in m_name.lower() for bad in ['tts', 'audio', 'imagen', 'embedding', 'aqa']):
+                            available_models.append(m_name)
+            except Exception:
+                pass
+
+            # Sort candidate models by price-performance priority
+            def model_priority(name):
+                n = name.lower()
+                if '2.5-flash' in n: return 1
+                if '3.5-flash' in n: return 2
+                if '1.5-flash' in n: return 3
+                if '3.7-flash' in n: return 4
+                if '1.5-pro' in n: return 5
+                if '2.5-pro' in n: return 6
+                if 'flash' in n: return 7
+                if 'pro' in n: return 8
+                return 9
+
+            available_models.sort(key=model_priority)
+
+            # Fallback list if list_models cannot be reached
+            if not available_models:
+                available_models = [
+                    'gemini-2.5-flash',
+                    'gemini-3.5-flash-lite',
+                    'gemini-1.5-flash',
+                    'gemini-1.5-pro',
+                    'gemini-3.7-flash'
+                ]
+
+            for model_name in available_models:
                 try:
                     m = genai.GenerativeModel(model_name)
                     res = m.generate_content(prompt_text)
@@ -228,6 +255,7 @@ def generate_gemini_response(api_key_input, prompt_text):
                         return res.text
                 except Exception as err:
                     last_error = err
+                    # Skip to next available model on same key if 404, 400, or 429
                     continue
 
         except Exception as key_err:
@@ -235,11 +263,11 @@ def generate_gemini_response(api_key_input, prompt_text):
             continue
 
     if last_error:
-        raise Exception(f"All {len(clean_keys)} Gemini API keys and models exhausted. Last error: {last_error}")
-    raise Exception(f"Failed to generate report across all {len(clean_keys)} keys.")
+        raise Exception(f"Failed to generate report across all {len(clean_keys)} Gemini key(s). Last error: {last_error}")
+    raise Exception(f"Failed to generate report across all {len(clean_keys)} key(s).")
 
 def generate_ai_report(api_key, client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context):
-    """Generates executive summary using Gemini. Raises exception if API fails."""
+    """Generates clinical executive summary using Gemini. Raises exception if API fails."""
     prompt = f"""
     You are an expert Lead Food Safety Compliance Officer (FSCO) for {client_label}. 
     I just finished an audit on {audit_date}. 
