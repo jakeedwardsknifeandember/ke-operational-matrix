@@ -79,14 +79,15 @@ def clear_audit_draft():
         except Exception:
             pass
 
-def _normalize_match_string(val):
-    """Normalizes smart quotes, apostrophes, whitespace, and casing for reliable database lookups."""
+def _clean_str(val):
+    """Sanitizes punctuation, quotes, whitespace, and casing for foolproof Google Sheet matching."""
     if not val:
         return ""
     s = str(val).strip().lower()
     s = s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
-    s = re.sub(r'\s+', ' ', s)
-    return s
+    s = re.sub(r"[^a-z0-9\s]", "", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
 
 def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, branch_name, audit_date, final_score, deductions, failed_items):
     """Logs numerical row to Google Sheets and calculates previous baseline trend using complete client label."""
@@ -99,53 +100,58 @@ def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, bra
         sheet = gc.open(active_sheet_name).sheet1
         existing_data = sheet.get_all_values()
         
-        target_est = _normalize_match_string(establishment_name)
-        target_branch = _normalize_match_string(branch_name)
+        target_est = _clean_str(establishment_name)
+        target_branch = _clean_str(branch_name)
         
         previous_score = None
         
-        # Scan backward from most recent records
+        # Scan backward from most recent historical records
         for row in reversed(existing_data):
-            if len(row) < 3:
+            if not row or len(row) < 2:
                 continue
                 
-            row_est = _normalize_match_string(row[1]) if len(row) > 1 else ""
-            row_branch = _normalize_match_string(row[2]) if len(row) > 2 else ""
+            clean_row = [_clean_str(cell) for cell in row]
+            raw_row = [str(cell).strip() for cell in row]
             
-            # Check for brand match
-            if target_est and target_est == row_est:
-                # 1. Match both Establishment and Branch (Standard 6-column layout: Date, Brand, Branch, Score...)
-                if target_branch and target_branch == row_branch and len(row) >= 4:
-                    try:
-                        score_str = str(row[3]).replace('%', '').strip()
-                        previous_score = float(score_str)
-                        break
-                    except (ValueError, IndexError):
-                        pass
+            # Skip header rows
+            if any(h in clean_row[0] for h in ["date", "brand", "establishment", "score"]):
+                continue
                 
-                # 2. Match Establishment when no branch is specified or legacy 5-column layout (Date, Brand, Score...)
-                elif not target_branch:
-                    try:
-                        score_str = str(row[2]).replace('%', '').strip()
-                        previous_score = float(score_str)
+            # Check brand match
+            est_match = False
+            if len(clean_row) > 1 and clean_row[1]:
+                if target_est == clean_row[1] or target_est in clean_row[1] or clean_row[1] in target_est:
+                    est_match = True
+            
+            if not est_match:
+                continue
+                
+            # Check branch match if branch is provided
+            branch_match = True
+            if target_branch:
+                branch_match = False
+                if len(clean_row) > 2 and clean_row[2]:
+                    if target_branch == clean_row[2] or target_branch in clean_row[2] or clean_row[2] in target_branch:
+                        branch_match = True
+                elif len(clean_row) > 1 and target_branch in clean_row[1]:
+                    branch_match = True
+            
+            if not branch_match:
+                continue
+                
+            # Extract numeric score percentage from columns
+            for col_idx in range(len(raw_row) - 1, 0, -1):
+                val_str = raw_row[col_idx].replace('%', '').strip()
+                try:
+                    score_val = float(val_str)
+                    if 0.0 <= score_val <= 100.0:
+                        previous_score = score_val
                         break
-                    except ValueError:
-                        if len(row) >= 4:
-                            try:
-                                score_str = str(row[3]).replace('%', '').strip()
-                                previous_score = float(score_str)
-                                break
-                            except ValueError:
-                                pass
-                                
-                # 3. Fallback: Branch specified but row has Score in column index 3 despite minor branch whitespace
-                elif target_branch and len(row) >= 4 and (target_branch in row_branch or not row_branch):
-                    try:
-                        score_str = str(row[3]).replace('%', '').strip()
-                        previous_score = float(score_str)
-                        break
-                    except (ValueError, IndexError):
-                        pass
+                except ValueError:
+                    continue
+            
+            if previous_score is not None:
+                break
                     
         if previous_score is not None:
             diff = final_score - previous_score
