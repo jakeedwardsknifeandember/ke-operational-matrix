@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import smtplib
+import re
 import pandas as pd
 
 from email.mime.multipart import MIMEMultipart
@@ -78,6 +79,15 @@ def clear_audit_draft():
         except Exception:
             pass
 
+def _normalize_match_string(val):
+    """Normalizes smart quotes, apostrophes, whitespace, and casing for reliable database lookups."""
+    if not val:
+        return ""
+    s = str(val).strip().lower()
+    s = s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+    s = re.sub(r'\s+', ' ', s)
+    return s
+
 def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, branch_name, audit_date, final_score, deductions, failed_items):
     """Logs numerical row to Google Sheets and calculates previous baseline trend using complete client label."""
     full_label = f"{establishment_name} - {branch_name}" if (establishment_name and branch_name) else (establishment_name or branch_name or "Store")
@@ -89,21 +99,53 @@ def sync_sheets_and_fetch_history(gc, active_sheet_name, establishment_name, bra
         sheet = gc.open(active_sheet_name).sheet1
         existing_data = sheet.get_all_values()
         
+        target_est = _normalize_match_string(establishment_name)
+        target_branch = _normalize_match_string(branch_name)
+        
         previous_score = None
+        
+        # Scan backward from most recent records
         for row in reversed(existing_data):
-            if len(row) >= 5:
-                if len(row) >= 6 and row[1] == establishment_name and row[2] == branch_name:
+            if len(row) < 3:
+                continue
+                
+            row_est = _normalize_match_string(row[1]) if len(row) > 1 else ""
+            row_branch = _normalize_match_string(row[2]) if len(row) > 2 else ""
+            
+            # Check for brand match
+            if target_est and target_est == row_est:
+                # 1. Match both Establishment and Branch (Standard 6-column layout: Date, Brand, Branch, Score...)
+                if target_branch and target_branch == row_branch and len(row) >= 4:
                     try:
-                        previous_score = float(row[3].replace('%', ''))
+                        score_str = str(row[3]).replace('%', '').strip()
+                        previous_score = float(score_str)
+                        break
+                    except (ValueError, IndexError):
+                        pass
+                
+                # 2. Match Establishment when no branch is specified or legacy 5-column layout (Date, Brand, Score...)
+                elif not target_branch:
+                    try:
+                        score_str = str(row[2]).replace('%', '').strip()
+                        previous_score = float(score_str)
                         break
                     except ValueError:
-                        continue
-                elif len(row) == 5 and row[1] == establishment_name:
+                        if len(row) >= 4:
+                            try:
+                                score_str = str(row[3]).replace('%', '').strip()
+                                previous_score = float(score_str)
+                                break
+                            except ValueError:
+                                pass
+                                
+                # 3. Fallback: Branch specified but row has Score in column index 3 despite minor branch whitespace
+                elif target_branch and len(row) >= 4 and (target_branch in row_branch or not row_branch):
                     try:
-                        previous_score = float(row[2].replace('%', ''))
+                        score_str = str(row[3]).replace('%', '').strip()
+                        previous_score = float(score_str)
                         break
-                    except ValueError:
-                        continue
+                    except (ValueError, IndexError):
+                        pass
                     
         if previous_score is not None:
             diff = final_score - previous_score
