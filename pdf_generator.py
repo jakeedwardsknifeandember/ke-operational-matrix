@@ -2,7 +2,7 @@ import os
 import tempfile
 import re
 from fpdf import FPDF
-from PIL import Image
+from PIL import Image, ImageOps
 
 def remove_emojis(text):
     """Strips all emoji characters and non-text pictographs."""
@@ -124,7 +124,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
     
     temp_image_files = []
     
-    # Pre-clean all incoming metadata to prevent standard-font encoding errors
     clean_est_name = clean_unicode_text(establishment_name)
     clean_br_name = clean_unicode_text(branch_name)
     clean_auditor_name = clean_unicode_text(fsco_name)
@@ -352,16 +351,18 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                     pdf.multi_cell(0, 5, txt=line)
                     pdf.ln(2)
 
-        # 5. Photographic Evidence Annex (With Look-Ahead Header Protection)
+        # 5. Photographic Evidence Annex (With Look-Ahead Header Protection & High-Ratio Compression)
         if uploaded_photos_data:
             col_x_positions = [12, 105]
             col_width = 83
 
+            # Calculate height of first row upfront to prevent orphaned Section 8 banner
             first_pair = uploaded_photos_data[0:2]
             max_first_calc_h = 0
             for photo_item in first_pair:
                 try:
                     with Image.open(photo_item["file"]) as img:
+                        img = ImageOps.exif_transpose(img)
                         img_w, img_h = img.size
                         calc_h = col_width * (img_h / img_w)
                         if calc_h > max_first_calc_h:
@@ -388,9 +389,15 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                 
                 for c_offset, photo_item in enumerate(pair):
                     u_file = photo_item["file"]
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
                         img = Image.open(u_file)
-                        img.convert("RGB").save(tmp.name)
+                        img = ImageOps.exif_transpose(img) # Correct orientation from mobile phone capture
+                        
+                        # Downscale large sensor images to max 1000px width/height for PDF embedding
+                        img.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+                        
+                        # Save as compressed JPEG (75% quality) to guarantee tiny PDF file size
+                        img.convert("RGB").save(tmp.name, format="JPEG", quality=75, optimize=True)
                         tmp_path = tmp.name
                         temp_image_files.append(tmp_path)
                         
@@ -399,7 +406,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                         if calc_h > max_calc_h:
                             max_calc_h = calc_h
                             
-                        # Clean and strip emojis strictly from photo caption
                         raw_caption = photo_item.get("caption", "")
                         clean_caption_text = clean_unicode_text(remove_emojis(raw_caption))
                         
@@ -410,7 +416,6 @@ def generate_pdf_report(establishment_name, branch_name, fsco_name, audit_date, 
                             "x_pos": col_x_positions[c_offset]
                         })
                 
-                # Check page overflow before drawing
                 if pdf.get_y() + max_calc_h + 15 > 275:
                     pdf.add_page()
                     
