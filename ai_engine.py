@@ -55,7 +55,6 @@ def read_company_standards(concept_folder, failed_items=None):
     else:
         return "WARNING: No standards directory found for this establishment."
 
-    # Directories to ignore during RAG scanning
     EXCLUDED_DIRS = {"audit reports", "audit_reports", "temp", "tmp", "old"}
 
     try:
@@ -63,7 +62,6 @@ def read_company_standards(concept_folder, failed_items=None):
         all_paragraphs = []
 
         for root, dirs, files in os.walk(scan_folder):
-            # Exclude non-standard directories dynamically
             dirs[:] = [d for d in dirs if d.lower() not in EXCLUDED_DIRS]
             
             for filename in files:
@@ -74,7 +72,7 @@ def read_company_standards(concept_folder, failed_items=None):
                         doc = docx.Document(doc_path)
                         for p in doc.paragraphs:
                             text = p.text.strip()
-                            if len(text) > 10:  # Skip empty or trivial lines
+                            if len(text) > 10:
                                 all_paragraphs.append((filename, text))
                     except Exception:
                         continue
@@ -83,7 +81,6 @@ def read_company_standards(concept_folder, failed_items=None):
             return f"WARNING: No active .docx SOP files found in '{scan_folder}'."
 
         if not failed_items:
-            # Full dump if no failures are provided (capped at 25,000 chars)
             full_standards = []
             current_file = ""
             total_chars = 0
@@ -110,7 +107,6 @@ def read_company_standards(concept_folder, failed_items=None):
             for w in words:
                 if len(w) > 2 and w not in stopwords:
                     keywords.add(w)
-                    # Add partial stems for custom findings (e.g., 'flooring' -> 'floor')
                     if len(w) > 4:
                         keywords.add(w[:4])
 
@@ -135,10 +131,10 @@ def read_company_standards(concept_folder, failed_items=None):
                     for idx in top_results[1]:
                         filename, text = all_paragraphs[idx.item()]
                         clean_fn = filename.replace('.docx', '').replace('.doc', '')
-                        scored_blocks.append((10, f"[{clean_fn}] {text}")) # Assign high base semantic score
+                        scored_blocks.append((10, f"[{clean_fn}] {text}"))
                     
         except Exception:
-            pass # Silently fallback to lexical keyword scoring if library is missing or fails
+            pass
 
         # 2. LEXICAL KEYWORD & FORM CODE SCORING
         for filename, text in all_paragraphs:
@@ -146,12 +142,10 @@ def read_company_standards(concept_folder, failed_items=None):
             text_lower = text.lower()
             score = 0
             
-            # Score matches based on keyword presence
             for kw in keywords:
                 if kw in text_lower:
                     score += 1
             
-            # Boost score for structural form codes and mandatory log definitions
             if "log-" in text_lower or "form" in text_lower:
                 score += 2
             if "prp" in text_lower or "sop" in text_lower:
@@ -160,22 +154,18 @@ def read_company_standards(concept_folder, failed_items=None):
             if score > 0:
                 scored_blocks.append((score, f"[{clean_fn}] {text}"))
 
-        # Remove duplicates while preserving highest score
         unique_blocks = {}
         for score, block in scored_blocks:
             if block not in unique_blocks or score > unique_blocks[block]:
                 unique_blocks[block] = score
 
-        # Sort blocks by relevance score in descending order
         final_scored_blocks = [(score, block) for block, score in unique_blocks.items()]
         final_scored_blocks.sort(key=lambda x: x[0], reverse=True)
 
         if not final_scored_blocks:
-            # Fallback: Top 50 general SOP paragraphs if keywords yield no hits
             fallback_blocks = [f"[{fn.replace('.docx', '').replace('.doc', '')}] {txt}" for fn, txt in all_paragraphs[:50]]
             return "\n".join(fallback_blocks)
 
-        # Accumulate relevant blocks up to a strict 20,000 character limit
         selected_blocks = []
         char_count = 0
         for score, block in final_scored_blocks:
@@ -191,24 +181,35 @@ def read_company_standards(concept_folder, failed_items=None):
 
 def generate_gemini_response(api_key_input, prompt_text):
     """
-    Executes prompt via Gemini API with Multi-Key Failover.
-    Iterates through a pool of backup API keys if a key hits quota limits or 429 rate errors.
+    Executes prompt via Gemini API with Multi-Key and Multi-Project Failover.
+    Iterates through all reserve keys if a key hits quota limits (429), resource exhaustion, or model deprecations.
     """
     if not api_key_input:
-        raise Exception("GEMINI_API_KEY is missing from Streamlit secrets.")
+        raise Exception("No Gemini API keys provided to execution engine.")
     
-    # Standardize input into a list of key strings
-    if isinstance(api_key_input, list):
-        api_keys = [str(k).strip() for k in api_key_input if str(k).strip()]
+    # Normalize keys into a deduplicated list of valid key strings
+    api_keys = []
+    if isinstance(api_key_input, (list, tuple, set)):
+        for item in api_key_input:
+            if item:
+                api_keys.extend([str(k).strip() for k in str(item).split(',') if str(k).strip()])
+    elif isinstance(api_key_input, dict):
+        for k, v in api_key_input.items():
+            if v:
+                api_keys.extend([str(x).strip() for x in str(v).split(',') if str(x).strip()])
     else:
         api_keys = [k.strip() for k in str(api_key_input).split(',') if k.strip()]
 
-    if not api_keys:
-        raise Exception("No valid Gemini API key found in configuration.")
+    # Deduplicate preserving order
+    seen = set()
+    clean_keys = [k for k in api_keys if k and not (k in seen or seen.add(k))]
+
+    if not clean_keys:
+        raise Exception("No valid Gemini API key strings extracted from configuration.")
 
     last_error = None
 
-    for key_idx, current_key in enumerate(api_keys):
+    for key_idx, current_key in enumerate(clean_keys):
         try:
             genai.configure(api_key=current_key)
             
@@ -230,7 +231,7 @@ def generate_gemini_response(api_key_input, prompt_text):
             except Exception:
                 pass
 
-            # Try candidate models with the current active API key
+            # Try models under current active key
             for model_name in candidates:
                 try:
                     m = genai.GenerativeModel(model_name)
@@ -241,15 +242,14 @@ def generate_gemini_response(api_key_input, prompt_text):
                     last_error = err
                     err_str = str(err).lower()
                     
-                    # 404/modality issues: try next model under the SAME API key
-                    if any(k in err_str for k in ["404", "notfound", "not found", "400", "modality", "audio", "tts"]):
+                    # 404 / unsupported modality: try next model under SAME key
+                    if any(k in err_str for k in ["404", "notfound", "not found", "400", "modality"]):
                         continue
                     
-                    # Quota exhaustion or Rate Limit (429): break model loop to trigger key failover
-                    if any(k in err_str for k in ["429", "quota", "resourceexhausted", "exhausted", "limit"]):
+                    # Rate limit (429), quota exhaustion, or invalid key: break candidate loop to immediately fail over to NEXT reserve key
+                    if any(k in err_str for k in ["429", "quota", "resourceexhausted", "exhausted", "limit", "key_invalid", "unregistered", "permission"]):
                         break
                     
-                    # Unrecognized error: break model loop to switch key
                     break
 
         except Exception as key_err:
@@ -257,8 +257,8 @@ def generate_gemini_response(api_key_input, prompt_text):
             continue
 
     if last_error:
-        raise last_error
-    raise Exception("All provided Gemini API keys and candidate models were exhausted or failed.")
+        raise Exception(f"All {len(clean_keys)} provided Gemini API keys were exhausted or failed. Last error: {last_error}")
+    raise Exception(f"All {len(clean_keys)} provided Gemini API keys and models were exhausted.")
 
 def generate_ai_report(api_key, client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context):
     """Generates executive summary using Gemini. Raises exception if API fails."""
@@ -287,7 +287,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     - ONLY use **bold** text for section titles or headers.
     - DO NOT use inline bolding inside of paragraphs.
     - Use simple dashes (-) instead of em-dashes (-).
-    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3] strictly inside the 3.2 Detailed Finding list. DO NOT use bracketed risk tags inside standard paragraphs (like the Administrative Breakdown).
+    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3] strictly in Section 3.2 and Section 4. DO NOT use bracketed risk tags inside narrative paragraphs (such as Section 1 Administrative Breakdown).
     
     Format the report STRICTLY with these sections exactly as named:
 
@@ -312,15 +312,17 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     {failed_items_formatted}
 
     **4. Corrective and Preventive Action (CAPA) Summary**
-    For every L1 and L2 violation, provide a recommended action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
+    For every L1 and L2 violation from the failed items list, provide a recommended action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
+    You MUST retain the exact risk level tag ([L1] or [L2]) and full checkpoint / custom finding details for each violation.
     Format EXACTLY like this:
-    1. Issue: (State the violation)
+    1. Issue:
+    [L1] (State the violation with its checkpoint ID / description / notes)
     Immediate Correction:
     (What to do today)
     Root Cause:
-    (Hypothesize why it happened)
+    (Hypothesize why it happened based on standards)
     Preventive Action:
-    (How to stop it happening again)
+    (How to stop it happening again based on standards)
 
     **5. Mandatory Compliance Toolkit**
     List any physical safety equipment that must be procured based on the specific violations.

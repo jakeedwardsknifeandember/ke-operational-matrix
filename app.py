@@ -18,8 +18,32 @@ from ui_components import render_login_screen
 PRIMARY_RECIPIENT_EMAIL = "jakeedwards.knifeandember@gmail.com"
 BASE_SCORE = 1000
 
-# --- SECURE CLOUD SETUP ---
-gemini_key = get_secret(st, "GEMINI_API_KEY")
+# --- COMPREHENSIVE MULTI-KEY FETCHER ---
+def fetch_all_gemini_api_keys(st_obj):
+    """Scans all possible secrets formats for single, list, comma-separated, or indexed API keys."""
+    keys_pool = []
+    
+    # 1. Check primary names (string, list, or comma-separated)
+    for k_name in ["GEMINI_API_KEY", "GEMINI_API_KEYS", "gemini_api_key", "gemini_api_keys"]:
+        val = get_secret(st_obj, k_name)
+        if val:
+            if isinstance(val, (list, tuple)):
+                keys_pool.extend([str(k).strip() for k in val if str(k).strip()])
+            else:
+                keys_pool.extend([str(k).strip() for k in str(val).split(',') if str(k).strip()])
+
+    # 2. Check indexed names (e.g. GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... up to 10)
+    for idx in range(1, 11):
+        for prefix in ["GEMINI_API_KEY_", "gemini_api_key_", "GEMINI_KEY_", "gemini_key_"]:
+            val = get_secret(st_obj, f"{prefix}{idx}")
+            if val:
+                keys_pool.extend([str(k).strip() for k in str(val).split(',') if str(k).strip()])
+
+    # Deduplicate while preserving order
+    seen = set()
+    return [k for k in keys_pool if k and not (k in seen or seen.add(k))]
+
+gemini_keys_pool = fetch_all_gemini_api_keys(st)
 
 gc = None
 gcp_secret = get_secret(st, "gcp_service_account")
@@ -132,9 +156,12 @@ if st.session_state.logged_in:
     if client_cc_email.strip():
         email_info_text += f"\n\nStakeholder CC:\n`{client_cc_email.strip()}`"
     st.sidebar.info(email_info_text)
+    
+    if len(gemini_keys_pool) > 1:
+        st.sidebar.caption(f"Failover Engine: **{len(gemini_keys_pool)} Gemini Keys Active**")
 
     st.title("Operational Surveillance Suite")
-    header_client_label = f"{establishment_name} - {branch_name}" if (establishment_name or branch_name) else "New Audit Inspection"
+    header_client_label = f"{establishment_name} - {branch_name}" if (establishment_name and branch_name) else (establishment_name or "New Audit Inspection")
     st.markdown(f"**Active Client:** {header_client_label}")
     st.divider()
 
@@ -191,7 +218,6 @@ if st.session_state.logged_in:
         st.subheader("On-Site Photo Evidence Vault")
         uploaded_photos_data = []
 
-        # 1. Bulk File Uploader (Supports .jpg, .jpeg, .png, .jfif, .webp)
         bulk_files = st.file_uploader(
             "Bulk Upload Photos (Select or drag multiple images):",
             type=["jpg", "jpeg", "png", "jfif", "webp"],
@@ -217,7 +243,6 @@ if st.session_state.logged_in:
         st.markdown("---")
         st.markdown("**Direct Camera Snap Evidence:**")
         
-        # 2. Camera Snaps for Live On-Site Audits
         for c_idx, snap_item in enumerate(st.session_state.camera_snaps):
             c_col1, c_col2 = st.columns([3, 2])
             with c_col1:
@@ -245,11 +270,11 @@ if st.session_state.logged_in:
         if st.button("Consult SOPs for Immediate Actions"):
             failures = get_all_failures()
             if not failures: st.success("No deviations flagged.")
-            elif not gemini_key: st.error("Gemini API Key missing.")
+            elif not gemini_keys_pool: st.error("Gemini API Key missing from configuration.")
             else:
                 standards = read_company_standards(active_folder_slug, failures)
                 try:
-                    guide_res = generate_sop_guide(gemini_key, header_client_label, failures, standards)
+                    guide_res = generate_sop_guide(gemini_keys_pool, header_client_label, failures, standards)
                     st.warning(guide_res)
                 except Exception as e:
                     st.error(f"Error consulting SOPs: {e}")
@@ -258,7 +283,6 @@ if st.session_state.logged_in:
         st.subheader("Verification Sign-Off")
         canvas_result = st_canvas(fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, drawing_mode="freedraw", key="fsco_signature_canvas")
         
-        # Lock signature canvas pixels into session state to prevent state loss on UI reruns
         if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0):
             st.session_state.saved_signature_data = canvas_result.image_data
             
@@ -290,13 +314,13 @@ if st.session_state.logged_in:
             notes_prompt = auditor_notes.strip() if auditor_notes.strip() else "No additional auditor notes recorded for this cycle."
             company_standards = read_company_standards(active_folder_slug, failed_items)
             
-            if not gemini_key:
-                st.error("Gemini API Key missing.")
+            if not gemini_keys_pool:
+                st.error("No Gemini API keys detected in configuration.")
                 st.session_state.report_generated = False
             else:
-                with st.spinner("Generating official report..."):
+                with st.spinner(f"Generating official report (Using pool of {len(gemini_keys_pool)} key(s))..."):
                     try:
-                        ai_report_text = generate_ai_report(gemini_key, header_client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context)
+                        ai_report_text = generate_ai_report(gemini_keys_pool, header_client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context)
                         st.session_state.cached_report_text = ai_report_text
                         st.session_state.report_generated = True
                         clear_audit_draft()
