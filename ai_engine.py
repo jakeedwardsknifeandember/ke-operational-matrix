@@ -181,13 +181,12 @@ def read_company_standards(concept_folder, failed_items=None):
 
 def generate_gemini_response(api_key_input, prompt_text):
     """
-    Executes prompt via Gemini API with Multi-Key and Multi-Project Failover.
-    Iterates through all reserve keys if a key hits quota limits (429), resource exhaustion, or model deprecations.
+    Executes prompt via Gemini API with Multi-Key and Multi-Model Failover.
+    Attempts all stable high-quota models across all provided keys before raising an exception.
     """
     if not api_key_input:
         raise Exception("No Gemini API keys provided to execution engine.")
     
-    # Normalize keys into a deduplicated list of valid key strings
     api_keys = []
     if isinstance(api_key_input, (list, tuple, set)):
         for item in api_key_input:
@@ -200,12 +199,20 @@ def generate_gemini_response(api_key_input, prompt_text):
     else:
         api_keys = [k.strip() for k in str(api_key_input).split(',') if k.strip()]
 
-    # Deduplicate preserving order
     seen = set()
     clean_keys = [k for k in api_keys if k and not (k in seen or seen.add(k))]
 
     if not clean_keys:
         raise Exception("No valid Gemini API key strings extracted from configuration.")
+
+    production_models = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-2.5-flash',
+        'gemini-1.5-flash-8b',
+        'gemini-1.5-pro',
+        'gemini-2.0-flash-lite'
+    ]
 
     last_error = None
 
@@ -213,26 +220,7 @@ def generate_gemini_response(api_key_input, prompt_text):
         try:
             genai.configure(api_key=current_key)
             
-            candidates = [
-                'gemini-2.5-flash',
-                'gemini-2.0-flash',
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-flash',
-                'gemini-flash-latest'
-            ]
-            
-            try:
-                for model_item in genai.list_models():
-                    if 'generateContent' in model_item.supported_generation_methods:
-                        clean_name = model_item.name.replace('models/', '').strip()
-                        if not any(bad in clean_name.lower() for bad in ['tts', 'audio', 'imagen', 'embedding', 'realtime']):
-                            if clean_name not in candidates:
-                                candidates.append(clean_name)
-            except Exception:
-                pass
-
-            # Try models under current active key
-            for model_name in candidates:
+            for model_name in production_models:
                 try:
                     m = genai.GenerativeModel(model_name)
                     res = m.generate_content(prompt_text)
@@ -240,25 +228,15 @@ def generate_gemini_response(api_key_input, prompt_text):
                         return res.text
                 except Exception as err:
                     last_error = err
-                    err_str = str(err).lower()
-                    
-                    # 404 / unsupported modality: try next model under SAME key
-                    if any(k in err_str for k in ["404", "notfound", "not found", "400", "modality"]):
-                        continue
-                    
-                    # Rate limit (429), quota exhaustion, or invalid key: break candidate loop to immediately fail over to NEXT reserve key
-                    if any(k in err_str for k in ["429", "quota", "resourceexhausted", "exhausted", "limit", "key_invalid", "unregistered", "permission"]):
-                        break
-                    
-                    break
+                    continue
 
         except Exception as key_err:
             last_error = key_err
             continue
 
     if last_error:
-        raise Exception(f"All {len(clean_keys)} provided Gemini API keys were exhausted or failed. Last error: {last_error}")
-    raise Exception(f"All {len(clean_keys)} provided Gemini API keys and models were exhausted.")
+        raise Exception(f"All {len(clean_keys)} Gemini API keys and models exhausted. Last error: {last_error}")
+    raise Exception(f"Failed to generate report across all {len(clean_keys)} keys.")
 
 def generate_ai_report(api_key, client_label, audit_date, final_score, deductions, failed_items_formatted, changelog_prompt, notes_prompt, company_standards, progress_context):
     """Generates executive summary using Gemini. Raises exception if API fails."""
@@ -274,9 +252,9 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     Do NOT invent generic solutions if a solution exists in these rules. 
     STRICT ANTI-HALLUCINATION RULES:
     - You may cite exact section or clause numbers (e.g., Section 5.3.1) ONLY IF they explicitly appear in the provided company standards. DO NOT invent, guess, or hallucinate fake section numbers.
-    - Reference specific form codes cleanly as written in the standards (e.g., FORM LOG-DEV-01, FORM LOG-TEMP-01, FORM LOG-GHP-01, FORM LOG-BUF-01). NEVER leave the standalone word "Form" or "FORM" without its explicit log code.
-    - When citing a document, SOP, or PRP, you must include its descriptive title in parentheses if available (e.g., PRP 1.0 (Personal Hygiene)).
-    - Write all recommendations in clean, plain operational descriptions.
+    - Reference specific form codes cleanly as written in the standards (e.g., FORM LOG-DEV-01, FORM LOG-TEMP-01, FORM LOG-GHP-01, FORM LOG-BUF-01, FORM LOG-LABEL-01). NEVER leave the standalone word "Form" or "FORM" without its explicit log code.
+    - When citing a document, SOP, or PRP, you must include its descriptive title in parentheses (e.g., PRP-GHP-01 (Personal Hygiene), SOP-OPS-02 (Storage & FIFO), PRP-GHP-07 (Traceability & Labeling)).
+    - Write all recommendations in clean, highly clinical operational descriptions.
     ---
     {company_standards}
     ---
@@ -287,7 +265,7 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     - ONLY use **bold** text for section titles or headers.
     - DO NOT use inline bolding inside of paragraphs.
     - Use simple dashes (-) instead of em-dashes (-).
-    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3] strictly in Section 3.2 and Section 4. DO NOT use bracketed risk tags inside narrative paragraphs (such as Section 1 Administrative Breakdown).
+    - DO NOT include square brackets anywhere in your output, EXCEPT for the risk level tags [L1], [L2], and [L3] strictly in Section 3.2 and under every numbered Issue in Section 4.
     
     Format the report STRICTLY with these sections exactly as named:
 
@@ -312,17 +290,18 @@ def generate_ai_report(api_key, client_label, audit_date, final_score, deduction
     {failed_items_formatted}
 
     **4. Corrective and Preventive Action (CAPA) Summary**
-    For every L1 and L2 violation from the failed items list, provide a recommended action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
-    You MUST retain the exact risk level tag ([L1] or [L2]) and full checkpoint / custom finding details for each violation.
-    Format EXACTLY like this:
+    For every L1 and L2 violation from the failed items list, provide a comprehensive clinical action plan. Number each violation sequentially (e.g., 1., 2., 3.). 
+    CRITICAL: Under each numbered "Issue:", you MUST copy the EXACT line from the failed items list verbatim, including its [L1] or [L2] tag, Checkpoint ID, and Notes. DO NOT summarize or rewrite the issue line.
+    
+    Format EVERY violation EXACTLY like this:
     1. Issue:
-    [L1] (State the violation with its checkpoint ID / description / notes)
+    [L1] (Copy the exact violation line verbatim: e.g. 4.3 All prep containers labeled with Prod Date + Expiry. - Notes: Some of the items have incomplete or no labels.)
     Immediate Correction:
-    (What to do today)
+    (What to do today citing exact SOP/PRP codes and titles in parentheses)
     Root Cause:
-    (Hypothesize why it happened based on standards)
+    (Hypothesize why it happened citing exact PRP/SOP codes and titles in parentheses)
     Preventive Action:
-    (How to stop it happening again based on standards)
+    (How to stop it happening again citing exact PRP/SOP codes, training protocols, and specific FORM LOG codes)
 
     **5. Mandatory Compliance Toolkit**
     List any physical safety equipment that must be procured based on the specific violations.
