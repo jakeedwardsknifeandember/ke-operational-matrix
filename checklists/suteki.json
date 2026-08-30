@@ -1,0 +1,807 @@
+{
+  "concept_name": "Suteki Japanese Restaurant (Sushi Bar, Hot Kitchen & Commissary)",
+  "folder_slug": "suteki",
+  "sheet_name": "Suteki_Audit_Database",
+  "checklist": {
+    "Module 1: Personal Hygiene, Health Clearances & Sushi Chef Practices": [
+      {
+        "Fail?": false,
+        "ID": "1.1",
+        "Description": "Employees perform full 20-second hand scrub with antibacterial soap and potable water at mandatory task transitions, cash handling, and break returns.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.2",
+        "Description": "ABSOLUTELY ZERO bare-hand contact with Ready-to-Eat (RTE) foods (acidified sushi rice, sashimi, nigiri, maki fillings, salad greens, cooked chasu); clean gloves or sanitized tongs used.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.3",
+        "Description": "Dedicated handwashing sinks in kitchen and sushi bar are completely unobstructed, fully functional, and accessible at all times.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.4",
+        "Description": "Hand sinks are continuously stocked with liquid antibacterial soap, single-use paper towels, 70% alcohol dispenser, and a covered foot-pedal waste bin.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.5",
+        "Description": "Documented Employee Health Policy active; staff can explain reportable communicable symptoms (diarrhea, vomiting, jaundice, fever with sore throat) and 48-hr exclusion.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.6",
+        "Description": "Mandatory 48-hour symptom-free illness exclusion enforced; valid local Health Certificate ID cards (EHS-102) compiled on-site for 100% of staff.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.7",
+        "Description": "Cuts, wounds, or lesions on hands/wrists covered with waterproof blue detectable bandages PLUS a clean food-grade disposable glove.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.8",
+        "Description": "Staff wear clean company uniforms and non-slip closed-toe shoes; aprons removed completely before entering restrooms or stepping outside.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.9",
+        "Description": "Clean hairnets or headwear enclosing hair completely worn by sushi chefs and kitchen crew; front-of-house staff maintain securely tied-back hair.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.10",
+        "Description": "Fingernails trimmed short, clean, and free of polish, artificial extensions, or acrylic overlays across all food and beverage handlers.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.11",
+        "Description": "Zero-jewelry policy enforced on lines (plain smooth wedding band only; no watches, bracelets, stone rings, or exposed body piercings).",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.12",
+        "Description": "Personal belongings, cellphones, drinks, and street clothing stored in designated lockers away from prep counters, sushi bar, and warewashing sinks.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.13",
+        "Description": "Eating, drinking from open cups, or vaping/tobacco strictly prohibited in food/beverage prep, dishwashing, and service staging zones.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.14",
+        "Description": "High-visibility bilingual/pictorial handwashing procedure and glove-changing signage posted directly at all hand sinks and restrooms.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "1.15",
+        "Description": "Food safety training records (LOG-TR-01) on-site; staff verified competent in cross-contamination, Big 9 allergen controls, and sanitation SSOPs.",
+        "Class": "L2",
+        "Notes": ""
+      }
+    ],
+    "Module 2: Sushi Bar, Shari Acidification (CCP 2), Raw Seafood & Ice Quality": [
+      {
+        "Fail?": false,
+        "ID": "2.1",
+        "Description": "HACCP CCP 2: Every batch of cooked sushi rice blended with seasoned vinegar to achieve verified pH <= 4.40 (Target: 4.10–4.30); logged on Form LOG-SUS-01 before release.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.2",
+        "Description": "4-Hour TPHC Holding: Acidified Shari held at ambient room temperature (32°C–37°C) under Time as a Public Health Control for maximum 4 hours with waterproof discard timestamp tags.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.3",
+        "Description": "Makisu bamboo rolling mats tightly wrapped with 3 layers of food-grade plastic cling film; zero exposed bamboo wood during rolling.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.4",
+        "Description": "Makisu cling-film barrier completely stripped, discarded, and replaced with fresh film at least every 2 hours or immediately if torn/soiled; logged on LOG-SUS-02.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.5",
+        "Description": "Raw sashimi and nigiri saku blocks retrieved in micro-batches from Right Chiller Tier 2 (<= 3.3°C) and staged inside nested double-pan crushed ice beds on the bench.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.6",
+        "Description": "Strict 20-minute maximum ambient bench dwell limit enforced for raw fish staging; product surface temp maintained <= 4.0°C (39.2°F); logged on LOG-SUS-03.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.7",
+        "Description": "Dual cutting board segregation at sushi station: BLUE board strictly for raw fish trimming/portioning; WHITE board strictly for RTE Maki/Nigiri assembly and plating.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.8",
+        "Description": "Yanagiba sashimi knife blades wiped clean and sanitized with 70% alcohol wipes between switching fish species (Salmon to Tuna) and prior to RTE plating.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.9",
+        "Description": "Acidic Tezu bowl (potable water + vinegar/mirin) prepared fresh and refreshed every 2 hours for gloved fingertip conditioning during nigiri pressing.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.10",
+        "Description": "Commercial bagged edible ice received from accredited suppliers with intact seals, batch codes, and clean delivery bags (PRP-WAT-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.11",
+        "Description": "Ice scoop constructed of food-grade stainless steel/polycarbonate, stored in dedicated clean external holster; zero scoops left inside ice chest.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.12",
+        "Description": "Monthly accredited laboratory Microbiological Potability Water Analysis Report (PNSDW compliance) current and filed on-site.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.13",
+        "Description": "Blender pitchers (frappes/smoothies) rinsed after every drink, sanitized between allergen transitions, and disassembled into 4 parts nightly.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.14",
+        "Description": "Sushi bar rails, ingredient pans, and expediting pass cleaned and sanitized every shift; completely free of sticky residues and pests.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "2.15",
+        "Description": "Sushi chefs can state exact critical limits for shari pH (<= 4.40), raw fish bench dwell (<= 20m), and makisu replacement intervals (2 hrs).",
+        "Class": "L1",
+        "Notes": ""
+      }
+    ],
+    "Module 3: Cold Chain, Right Chiller Storage & TCS Cold Sauce Safety": [
+      {
+        "Fail?": false,
+        "ID": "3.1",
+        "Description": "4-Door combination unit maintains internal product temperatures: Right Chiller <= 39.2°F (4.0°C) [ambient <= 3.3°C] and Left Freezer <= 0°F (-18.0°C).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.2",
+        "Description": "4-Tier Vertical Storage Hierarchy strictly maintained in Right Chiller: Tier 1 (Cooked/RTE/Sauces/Produce) -> Tier 2 (Fish Saku) -> Tier 3 (Pork/Beef) -> Tier 4 (Raw Chicken).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.3",
+        "Description": "100% of decanted, prepped, and transferred containers display indelible 5-field waterproof secondary date labels (< 72h meats / < 48h produce / < 7d sauces).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.4",
+        "Description": "TCS Cold Specialty Sauces (Japanese Mayo, Spicy Mayo, Wasabi Mayo, Unagi Tare) stored continuously in Right Chiller Tier 1 (<= 4.0°C) with strict 7-day discard limit.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.5",
+        "Description": "ABSOLUTELY ZERO TOP-FILLING of sauce squeeze bottles; empty bottles removed, washed, sanitized, and dried before refilling with fresh sauce.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.6",
+        "Description": "Working sauce squeeze bottles on prep counters returned to Right Chiller immediately after service rushes; cumulative ambient exposure limited to < 2 hours.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.7",
+        "Description": "Conspicuous, accurate digital ambient thermometers installed in all chiller and freezer compartments; checked for zero battery drift.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.8",
+        "Description": "Internal temperatures of refrigerated TCS foods (raw fish, pork, chicken, sauces, broth) logged at 4-hour intervals (08:00, 12:00, 16:00, 20:00) in LOG-TEMP-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.9",
+        "Description": "Commercial freezer maintains foods rock-solid; ambient air maintained at <= 0°F (-18°C) with no excessive frost or defrost breakdown.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.10",
+        "Description": "Chiller shelves non-corrosive, clean, and not overloaded, maintaining a minimum 2-inch clearance for 360-degree cold air circulation.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.11",
+        "Description": "Magnetic rubber door gaskets on all 4 doors are clean, flexible, seal airtight, and 100% free of black mold biofilms.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.12",
+        "Description": "Dispensing nozzle tips and screw caps wiped clean with 70% alcohol wipes every 2 hours and fitted with protective caps when not dispensing.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.13",
+        "Description": "Sauce squeeze bottles disassembled into 3 parts (body, cap, nozzle), soaked in chemical sanitizer, and air-dried inverted daily.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.14",
+        "Description": "Zero spoiled, sour, discolored, or expired items present in inventory; expired items quarantined immediately in waste bin.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "3.15",
+        "Description": "Daily cold chain temperature tracking logs reviewed, verified, and signed off daily by the Shift Supervisor or FSCO.",
+        "Class": "L2",
+        "Notes": ""
+      }
+    ],
+    "Module 4: Commissary Intake, Controlled Thawing & Raw Protein Prep": [
+      {
+        "Fail?": false,
+        "ID": "4.1",
+        "Description": "HACCP CCP 1 (Commissary Intake): Delivery batches from owner SUV inspected immediately; temperature verified (Chilled <= 4.0°C / Frozen <= -18.0°C) & logged on LOG-REC-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.2",
+        "Description": "ABSOLUTELY ZERO raw meat, poultry, or seafood observed thawing at ambient room temperature, on cook lines, on floors, or in standing warm water sinks.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.3",
+        "Description": "Controlled Cold-Chain Thawing: Frozen proteins thawed inside Right Chiller (Tier 2/3/4) at <= 3.3°C ambient / <= 4.0°C core inside covered drip pans (SOP-THW-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.4",
+        "Description": "Emergency running water thawing conducted in sanitized prep sink with cold running water (<= 21°C) for < 2 hours; product core maintained <= 4.0°C.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.5",
+        "Description": "Commissary Transfer Slips (CTS) verified for batch numbers, preparation timestamps, and allergen declarations prior to acceptance (PRP-TRACE-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.6",
+        "Description": "Raw chicken, pork, and beef prepped in a dedicated prep zone strictly physically separated from RTE sushi and cooked finishing stations.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.7",
+        "Description": "Raw protein prep tables and cutting boards washed, rinsed, and sanitized immediately following raw meat manipulation.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.8",
+        "Description": "Disposable gloves removed and discarded immediately after touching raw poultry/meat; hands washed for 20 seconds before touching other surfaces.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.9",
+        "Description": "Raw meat marinade containers are food-grade, sealed with airtight lids, and dated with prep and discard timestamps.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "4.10",
+        "Description": "Corrugated packaging and outer commissary plastic bags disposed of directly into lined waste bins; zero contact with clean food contact surfaces.",
+        "Class": "L2",
+        "Notes": ""
+      }
+    ],
+    "Module 5: Thermal Lethality, Deep-Frying (CCP 3), Broth Reheating (CCP 4) & Sizzling Dishes": [
+      {
+        "Fail?": false,
+        "ID": "5.1",
+        "Description": "HACCP CCP 3 (Poultry Lethality): Chicken Karaage deep-fried to internal core temp >= 165°F (74.0°C) held for >= 15 seconds; logged on LOG-HOT-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.2",
+        "Description": "HACCP CCP 3 (Pork Lethality): Pork Tonkatsu loin cutlets deep-fried to internal core temp >= 158°F (70.0°C) held for >= 15 seconds; logged on LOG-HOT-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.3",
+        "Description": "HACCP CCP 3 (Seafood Tempura): Ebi Tempura and Calamari deep-fried to internal core temp >= 145°F (63.0°C) held for >= 15 seconds; logged on LOG-HOT-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.4",
+        "Description": "HACCP CCP 4 (Ramen Broth Reheating): Commissary ramen broths rapidly reheated on direct flame/induction to rolling boil >= 165°F (74.0°C) within 2 hrs; logged on LOG-HOT-02.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.5",
+        "Description": "HOT HOLDING: Reheated ramen broths maintained in pre-heated soup warmers at >= 140°F (60.0°C) [target 65°C–80°C]; checked every 2 hours.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.6",
+        "Description": "4-Hour Broth Holding Limit: Broth holding limited to maximum 4 hours with discard timestamp tags; zero top-filling of new broth into old warmer residue.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.7",
+        "Description": "Sanitary Two-Spoon sensory tasting method strictly enforced for ramen broth and sauce seasoning; ZERO direct pot-to-mouth tasting.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.8",
+        "Description": "Sizzling cast-iron platters preheated on high flame to >= 392°F (200.0°C) verified via infrared thermometer before assembling rice and beef/salmon.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.9",
+        "Description": "Sizzling beef slices flash-sear against iron surface to achieve secondary thermal lethality (>= 70.0°C) during sauce sizzle and customer table mixing.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.10",
+        "Description": "Branded 3-inch anti-splatter disposable paper collar securely fitted around wooden underliner; server verbally cautions guest upon table delivery.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.11",
+        "Description": "Hot Appetizer Pan-Frying: Gyoza dumplings (sear-and-steam) and Takoyaki octopus balls probed to core temp >= 165°F (74.0°C) for 15s; logged on LOG-HOT-04.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.12",
+        "Description": "Deep fryer oil quality monitored 2x daily; oil discarded immediately when Total Polar Materials (TPM) exceed 24.0% or oil smokes below 170°C.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.13",
+        "Description": "Digital stem probe thermometers calibrated weekly (Mondays 09:00 AM) in 50/50 ice slurry (32°F / 0°C ± 1°F); logged on LOG-HOT-05 (LOG-CAL-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.14",
+        "Description": "Fryer baskets, skimmers, and tongs in good repair (no broken wire mesh, rust, or loose metal fragments posing physical hazards).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "5.15",
+        "Description": "Kitchen line cooks can state the exact minimum internal cooking temperature for poultry (74°C), pork (70°C), broth reheat (74°C), and sizzling iron (200°C).",
+        "Class": "L1",
+        "Notes": ""
+      }
+    ],
+    "Module 6: Cross-Contamination & Big 9 Allergen Management": [
+      {
+        "Fail?": false,
+        "ID": "6.1",
+        "Description": "Vertical refrigeration storage hierarchy followed: Top: RTE/Sushi/Produce -> 2nd: Fish Saku -> 3rd: Pork/Beef -> Bottom: Raw Chicken (SOP-STO-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.2",
+        "Description": "Color-coded cutting board system strictly enforced: WHITE: RTE/Maki/Cooked Meats | BLUE: Raw Fish | YELLOW: Raw Poultry | RED: Raw Pork/Beef | PURPLE: Allergens.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.3",
+        "Description": "BIG 9 ALLERGEN SEGREGATION: Crustacean (Ebi), Fish, Soy, Sesame, Wheat/Gluten, Egg, Dairy, Peanut, Tree Nuts managed with distinct dedicated utensils.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.4",
+        "Description": "Dedicated allergen prep tools (PURPLE board, knife, tongs) utilized exclusively for allergen-free customer tickets (PRP-ALLERG-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.5",
+        "Description": "Sushi chefs and kitchen handlers wash hands and change gloves immediately when switching between allergen orders and allergen-free orders.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.6",
+        "Description": "Prominent Allergen Advisory Disclaimer displayed on customer menus and cashier counter signage informing guests of major allergens.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.7",
+        "Description": "Dual-tong segregation strictly maintained: Dedicated Yellow/Red tongs for raw meats; sanitized stainless steel tongs for cooked food extraction.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.8",
+        "Description": "Food, sushi rice sacks, and dry ingredients stored a minimum of 6 inches (15 cm) above the finished floor on clean stainless/wire shelving.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.9",
+        "Description": "Dry ingredients (tempura flour, panko, nori sheets, seasonings) stored in food-grade sealed bins labeled with product name and secondary expiry.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.10",
+        "Description": "FIFO / FEFO inventory rotation evident across all dry storage, reach-in coolers, and kitchen prep staging lines.",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.11",
+        "Description": "Supplier expiration dates, manufacturing codes, and secondary prep date labels never overwritten, obscured, or falsified.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.12",
+        "Description": "Wiping cloths color-coded and stored submerged in chemical sanitizing solution buckets (200 PPM Quat) when not in active use; cloths refreshed every 2 hours.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.13",
+        "Description": "Fresh produce washed exclusively in dedicated prep basin with 50–100 PPM Chlorine for 60s, rinsed with potable water, and spin-dried (SSOP-CLN-03).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.14",
+        "Description": "Garnishes (cucumber matchsticks, mango batons, chopped scallions) prepped with dedicated sanitized knives and cutting boards (SSOP-CLN-03).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "6.15",
+        "Description": "Customer takeaway packaging (maki boxes, ramen bowls, cups, chopsticks) stored inverted in clean dispensers away from splash zones (SOP-FOH-03).",
+        "Class": "L3",
+        "Notes": ""
+      }
+    ],
+    "Module 7: 2-Compartment Sink SSOP, Floor Maintenance & Chemical Safety": [
+      {
+        "Fail?": false,
+        "ID": "7.1",
+        "Description": "2-COMPARTMENT SINK PROTOCOL: Basin 1 (Wash with alkaline detergent at >= 45.0°C) -> Basin 2 (Clean potable rinse) -> Dedicated Auxiliary Sanitizer Immersion Tub (SSOP-CLN-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.2",
+        "Description": "STRUCTURAL COMPENSATION: Pre-wash scraping and rubber spatula debris clearing executed before Sink 1 to prevent organic loading of wash water.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.3",
+        "Description": "Chemical sanitizer bath (50–100 PPM Chlorine or 200 PPM Quat) maintained in dedicated auxiliary tub with MINIMUM 60-SECOND full submersion contact dwell time.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.4",
+        "Description": "Chemical test strips available on-site and utilized every 2 hours to verify sanitizer concentration in the active sanitizing bath; logged on Form LOG-CLN-01.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.5",
+        "Description": "All washed, rinsed, and sanitized dishware, ramen bowls, and smallwares air-dried inverted on clean wire racks; ABSOLUTELY ZERO TOWEL-DRYING.",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.6",
+        "Description": "Cutting boards smooth, non-porous, free of deep scoring (> 1.0 mm) or dark mold stains, and stored VERTICALLY in slotted stainless racks (SSOP-CLN-02).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.7",
+        "Description": "Chemicals, degreasers, descalers, and sanitizers stored in a dedicated locked chemical cabinet strictly segregated from food/packaging zones (PRP-SAN-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.8",
+        "Description": "All secondary chemical spray bottles clearly labeled with chemical name, concentration, and Safety Data Sheet (SDS) hazard pictograms (PRP-SAN-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.9",
+        "Description": "Exhaust canopy hood filters, grease drip cups, and ventilation fans clean, degreased weekly, and free of dripping grease hazards (SSOP-CLN-04).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.10",
+        "Description": "High-touch surfaces (door handles, POS touchscreens, chiller door handles) sanitized with 200 PPM Quat disinfectant every 2 to 4 hours (SSOP-CLN-04, SOP-FOH-03).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.11",
+        "Description": "Nightly kitchen floor 4-step cleaning: Dry sweep -> Hot water (>= 50°C) + alkaline degreaser (1:20) 5-min dwell -> Stiff deck scrub -> Squeegee/mop dry (SSOP-CLN-05).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.12",
+        "Description": "Zero Standing Water Pool mandate strictly enforced; floors squeegeed toward standard floor drains and mopped completely dry within 15 minutes (SSOP-CLN-05).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.13",
+        "Description": "Under-sink grease traps inspected, skimmed weekly, sealed airtight, and waste grease disposed of in sealed bags per SM Mall EHS guidelines (SSOP-CLN-04).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.14",
+        "Description": "Floor drain strainers cleared of solid debris nightly and drain traps sanitized by pouring 2 Liters of 200 PPM Quat solution (SSOP-CLN-05).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "7.15",
+        "Description": "Master Cleaning Schedule (Form LOG-CLN-04) visibly posted, assigning specific deep-cleaning duties, frequencies, chemicals, and sign-offs (SSOP-CLN-04).",
+        "Class": "L2",
+        "Notes": ""
+      }
+    ],
+    "Module 8: Integrated Pest Management (IPM), FOH Bussing & Sourcing Traceability": [
+      {
+        "Fail?": false,
+        "ID": "8.1",
+        "Description": "Zero evidence of active rodent activity (droppings, gnaw marks, rub marks, urine stains) across dining room, sushi bar, kitchen, and storage (PRP-IPM-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.2",
+        "Description": "Zero evidence of German cockroach, housefly, fruit fly (Drosophila), or ant infestation around food prep, sushi rail, or kitchen lines (PRP-IPM-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.3",
+        "Description": "Active contract with licensed Pest Control Operator (PCO); monthly pest service reports and chemical application data sheets filed on-site in LOG-IPM-01.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.4",
+        "Description": "External building perimeter sealed: Back-of-house entrance doors sealed with magnetic insect screen curtains; kitchen access doors kept closed at all times.",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.5",
+        "Description": "Electronic Insect Light Traps (ILTs) installed away from exposed food lines; glue boards inspected weekly and replaced monthly (PRP-IPM-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.6",
+        "Description": "Absolute Zero-Cardboard policy strictly enforced across wet kitchen, prep, and chiller storage zones (PRP-FAC-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.7",
+        "Description": "Refuse bins foot-pedal operated, plastic-lined, covered with tight-fitting lids, and emptied at every shift closing (PRP-IPM-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.8",
+        "Description": "3-Minute Table Bussing & Two-Step Sanitization: Vacated dining tables cleared, cleaned with detergent, and sanitized with 200 PPM Quat within 3 minutes (SOP-FOH-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.9",
+        "Description": "Servers execute alcohol hand rub immediately post-bussing before touching clean tableware or delivering food plates (SOP-FOH-01).",
+        "Class": "L1",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.10",
+        "Description": "Front cashier counter 100% free of personal clutter, sneeze guard wiped clear with 70% alcohol, and POS touchscreens sanitized every 2 hours (SOP-FOH-03).",
+        "Class": "L3",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.11",
+        "Description": "Master Safety Data Sheets (SDS) for 100% of cleaning chemicals and pest control agents archived in an accessible yellow binder on-site (PRP-SAN-01).",
+        "Class": "L2",
+        "Notes": ""
+      },
+      {
+        "Fail?": false,
+        "ID": "8.12",
+        "Description": "Legal Chain of Custody & Traceability: Sourcing exclusively from Central Commissary and FDA/NMIS-accredited suppliers with on-site lot records in LOG-TRACE-01 (PRP-TRACE-01).",
+        "Class": "L1",
+        "Notes": ""
+      }
+    ]
+  }
+}
